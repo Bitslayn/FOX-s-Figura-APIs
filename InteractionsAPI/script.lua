@@ -1,5 +1,5 @@
 -- Some example code
-local interactions = require("scripts.interactionsAPI")
+local interactions = require("InteractionsAPI")
 
 function events.entity_init()
   interactions:create("Test"):setRegion(-230, 63, 173, -231, 64, 172):setMode("Hitbox"):setKey("key.mouse.right"):update()

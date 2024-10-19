@@ -53,7 +53,7 @@ end
 -- #ENDREGION
 
 -- #REGION Chained get/set functions
---   #REGION Get
+--   #REGION Set
 -- ~================================================================================~
 -- SET REGION
 
@@ -65,23 +65,6 @@ function InteractionsAPI:setRegion(fromVec, toVec)
   self.region = self.region or {}
   self.region.fromVec = fromVec
   self.region.toVec = toVec
-  return self
-end
-
--- ~====================~
-
----Set the region vectors for this interaction
----@param self InteractionsAPI
----@param x1 number # First corner
----@param y1 number # First corner
----@param z1 number # First corner
----@param x2 number # Second corner
----@param y2 number # Second corner
----@param z2 number # Second corner
-function InteractionsAPI:setRegion(x1, y1, z1, x2, y2, z2)
-  self.region = self.region or {}
-  self.region.fromVec = vec(x1, y1, z1)
-  self.region.toVec = vec(x2, y2, z2)
   return self
 end
 
@@ -109,7 +92,7 @@ end
 
 --   #ENDREGION
 
---   #REGION Set
+--   #REGION Get
 -- ~================================================================================~
 -- GET REGION
 
@@ -216,7 +199,7 @@ end
 -- ~================================================================================~
 -- CREATE
 
----Creates an interaction with optional paramaters
+---Creates an interaction with optional parameters
 ---@param name string # Name of this interaction
 ---@param fromVec? Vector3 # First corner
 ---@param toVec? Vector3 # Second corner
@@ -244,51 +227,6 @@ function interactions:create(name, fromVec, toVec, mode, key)
   -- Set values
   if fromVec and toVec then
     interactions[name]:setRegion(fromVec, toVec)
-  end
-  if mode then
-    interactions[name]:setMode(mode)
-  end
-  if key then
-    interactions[name]:setKey(key)
-  end
-
-  return interactions[name]
-end
-
--- ~====================~
-
----Creates an interaction with optional paramaters
----@param name string # Name of this interaction
----@param x1? number # First corner
----@param y1? number # First corner
----@param z1? number # First corner
----@param x2? number # Second corner
----@param y2? number # Second corner
----@param z2? number # Second corner
----@param mode? InteractionModes
----@param key? Minecraft.keyCode
----@return InteractionsAPI
-function interactions:create(name, x1, y1, z1, x2, y2, z2, mode, key)
-  if not interactions[name] then
-    self = setmetatable({
-      name = name,
-      region = nil,
-      mode = nil,
-      key = nil,
-    }, {
-      __index = InteractionsAPI,
-      __call = function(t, ...)
-        return self:getInteractors()
-      end,
-    })
-
-    -- Store the interaction to table
-    interactions[name] = self
-  end
-
-  -- Set values
-  if (x1 and y1 and z1) and (x2 and y2 and z2) then
-    interactions[name]:setRegion(vec(x1, y1, z1), vec(x2, y2, z2))
   end
   if mode then
     interactions[name]:setMode(mode)

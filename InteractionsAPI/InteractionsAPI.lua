@@ -3,7 +3,7 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's InteractionsAPI v1.0.0
+FOX's InteractionsAPI v1.0.1
 
 --]]
 
@@ -31,7 +31,7 @@ local InteractionsAPI = {}
 local interactions = {}
 
 
-local version = "v1.0.0" -- DO NOT TOUCH
+local version = "v1.0.1" -- DO NOT TOUCH
 avatar:store("InteractionsAPI",
   { version = version, config = { allowUndefinedRegions = allowUndefinedRegions } })
 
@@ -356,7 +356,7 @@ function InteractionsAPI:getInteractors()
           for u, t in pairs(api.pings) do
             if u == selfUUID and type(t) == "table" and t[id] then
               players = players or {}
-              table.insert(players, true)
+              table.insert(players, plr)
             end
           end
         end

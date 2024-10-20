@@ -3,7 +3,7 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's InteractionsAPI v1.0.1
+FOX's InteractionsAPI v1.0.2
 
 --]]
 
@@ -61,20 +61,11 @@ end
 ---@param self InteractionsAPI
 ---@param fromVec Vector3 # First corner
 ---@param toVec Vector3 # Second corner
-function InteractionsAPI:setRegion(fromVec, toVec)
+---@param mode InteractionModes
+function InteractionsAPI:setRegion(fromVec, toVec, mode)
   self.region = self.region or {}
   self.region.fromVec = fromVec
   self.region.toVec = toVec
-  return self
-end
-
--- ~========================================~
--- SET MODE
-
----Set the mode for this interaction
----@param self InteractionsAPI
----@param mode InteractionModes
-function InteractionsAPI:setMode(mode)
   self.mode = mode
   return self
 end
@@ -96,21 +87,11 @@ end
 -- ~================================================================================~
 -- GET REGION
 
----Get the region vectors for this interaction
+---Get the region vectors and the mode for this interaction
 ---@param self InteractionsAPI
 ---@return table
 function InteractionsAPI:getRegion()
-  return self.region
-end
-
--- ~========================================~
--- GET MODE
-
----Get the mode defined for this interaction
----@param self InteractionsAPI
----@return InteractionModes
-function InteractionsAPI:getMode()
-  return self.mode
+  return { region = self.region, mode = self.mode }
 end
 
 -- ~========================================~

@@ -3,7 +3,7 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's InteractionsAPI v1.1.0
+FOX's InteractionsAPI v1.1.1
 
 --]]
 
@@ -20,7 +20,7 @@ local allowUndefinedRegions = true
 ---| "Hitbox" # Activates when a player looks at this region
 ---| "Collider" # Activates when a player collides with this region
 ---@alias InteractionSwingFrequency string
----| "Never" # Never swing the players arm
+---| "Never" # Never swing the player's arm
 ---| "Once" # Swing when the player interacts
 ---| "Every Tick" # Swing while player is interacting
 ---@class InteractionsAPI
@@ -38,7 +38,7 @@ local InteractionsAPI = {}
 local interactions = {}
 
 
-local version = "v1.1.0" -- DO NOT TOUCH
+local version = "v1.1.1" -- DO NOT TOUCH
 avatar:store("InteractionsAPI",
   { version = version, config = { allowUndefinedRegions = allowUndefinedRegions } })
 
@@ -158,9 +158,9 @@ end
 -- ~========================================~
 -- GET SWING
 
----Sets swing frequency when interacting
+---Gets swing frequency when interacting
 ---@param self InteractionsAPI
----@return string
+---@return InteractionSwingFrequency
 function InteractionsAPI:getSwing()
   return self.swing
 end

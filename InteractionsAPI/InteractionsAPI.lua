@@ -57,7 +57,7 @@ end
 -- ~================================================================================~
 -- SET REGION
 
----Set the region vectors for this interaction
+---Set the region vectors and mode for this interaction
 ---@param self InteractionsAPI
 ---@param fromVec Vector3 # First corner
 ---@param toVec Vector3 # Second corner
@@ -206,11 +206,8 @@ function interactions:create(name, fromVec, toVec, mode, key)
   end
 
   -- Set values
-  if fromVec and toVec then
-    interactions[name]:setRegion(fromVec, toVec)
-  end
-  if mode then
-    interactions[name]:setMode(mode)
+  if fromVec and toVec and mode then
+    interactions[name]:setRegion(fromVec, toVec, mode)
   end
   if key then
     interactions[name]:setKey(key)

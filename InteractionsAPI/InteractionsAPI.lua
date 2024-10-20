@@ -31,7 +31,7 @@ local InteractionsAPI = {}
 local interactions = {}
 
 
-local version = "v1.0.1" -- DO NOT TOUCH
+local version = "v1.0.2" -- DO NOT TOUCH
 avatar:store("InteractionsAPI",
   { version = version, config = { allowUndefinedRegions = allowUndefinedRegions } })
 

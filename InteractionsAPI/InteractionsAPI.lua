@@ -3,7 +3,7 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's InteractionsAPI v1.1.1
+FOX's InteractionsAPI v1.1.2
 
 --]]
 
@@ -38,7 +38,7 @@ local InteractionsAPI = {}
 local interactions = {}
 
 
-local version = "v1.1.1" -- DO NOT TOUCH
+local version = "v1.1.2" -- DO NOT TOUCH
 avatar:store("InteractionsAPI",
   { version = version, config = { allowUndefinedRegions = allowUndefinedRegions } })
 
@@ -354,14 +354,16 @@ end
 
 -- Pinging when a player interacts with an interaction
 function pings.iapiPing(u, i, bool)
-  local avatarVars = player:getVariable()
-  local tbl = deepCopy(avatarVars["InteractionsAPI"] or {})
+  if player:isLoaded() then
+    local avatarVars = player:getVariable()
+    local tbl = deepCopy(avatarVars["InteractionsAPI"] or {})
 
-  tbl.pings = tbl.pings or {}
-  tbl.pings[u] = tbl.pings[u] or {}
-  tbl.pings[u][tostring(i)] = bool
+    tbl.pings = tbl.pings or {}
+    tbl.pings[u] = tbl.pings[u] or {}
+    tbl.pings[u][tostring(i)] = bool
 
-  avatar:store("InteractionsAPI", tbl)
+    avatar:store("InteractionsAPI", tbl)
+  end
 end
 
 -- Keys currently being pressed
@@ -457,11 +459,11 @@ if host:isHost() then
                       :newPart(value.name .. "_debug_text", "CAMERA")
                       :newText(value.name)
                       :setText("Owner: " ..
-                      username ..
-                      "\nName: " ..
-                      value.name ..
-                      "\n\nMode: " ..
-                      value.mode .. "\nKey: " .. value.key .. "\nDistance: " .. value.distance)
+                        username ..
+                        "\nName: " ..
+                        value.name ..
+                        "\n\nMode: " ..
+                        value.mode .. "\nKey: " .. value.key .. "\nDistance: " .. value.distance)
                       :setBackgroundColor(vectors.hexToRGB("#00000040"))
                       :scale(0.2)
                 else

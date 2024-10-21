@@ -3,7 +3,7 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's InteractionsAPI v1.1.3
+FOX's InteractionsAPI v1.1.4
 
 --]]
 
@@ -38,7 +38,7 @@ local InteractionsAPI = {}
 local interactions = {}
 
 
-local version = "v1.1.3" -- DO NOT TOUCH
+local version = "v1.1.4" -- DO NOT TOUCH
 avatar:store("InteractionsAPI",
   { version = version, config = { allowUndefinedRegions = allowUndefinedRegions } })
 
@@ -391,6 +391,7 @@ local kb = keybinds:newKeybind("InteractionsAPI - Debug Mode", "key.keyboard.rig
     end)
 local lines = {}
 local hitboxPos = {}
+local interactionOwners = {}
 
 local function getKeyID(ID)
   local previousKey = kb:getKey()
@@ -421,62 +422,117 @@ if host:isHost() then
                   username = p:getName()
                 end
               end
+              local ownerExistsInTable = false
+              for _, p in pairs(interactionOwners) do
+                if p == username then
+                  ownerExistsInTable = true
+                end
+              end
+              if not ownerExistsInTable then
+                table.insert(interactionOwners, username)
+              end
+              for h, p in pairs(interactionOwners) do
+                if not world.getPlayers()[p] then
+                  interactionOwners[h] = nil
 
-              if value.mode == "Collider" then
-                rc = raycast:aabb(playerPos, playerPos, region)
-                currentPing = rc and (not value.key or keypresses[getKeyID(value.key)])
-              elseif value.mode == "Hitbox" then
-                rc = raycast:aabb(eyePos, eyeEnd, region)
-                currentPing = rc and (not value.key or keypresses[getKeyID(value.key)])
-              else
-                error(
-                  "§4§lInteractionsAPI:§r§4 \"" ..
-                  value.name ..
-                  "\" Mode definition error! Mode must be selected if a region is defined!§c", -1)
-              end
-              hbPos = (value.region.fromVec + value.region.toVec) / 2
-              lines[username] = lines[username] or {}
-              hitboxPos[username] = hitboxPos[username] or {}
-              if not lines[username][value.name] and ((rc and value.color) or debug) then
-                lines[username][value.name] = drawHitbox(value.region.fromVec, value.region.toVec, value.color)
-                hitboxPos[username][value.name] = (value.region.fromVec + value.region.toVec) / 2
-              elseif lines[username][value.name] and not (rc or debug) then
-                for _, line in pairs(lines[username][value.name]) do
-                  line:free()
+                  for _, line in pairs(lines[p][value.name]) do
+                    line:free()
+                  end
+                  lines[p][value.name] = nil
+                  if models[value.name .. "_" .. p .. "_debug"] then
+                    models[value.name .. "_" .. p .. "_debug"]:remove()
+                  end
                 end
-                lines[username][value.name] = nil
-              elseif lines[username][value.name] and hbPos ~= hitboxPos[username][value.name] then
-                for _, line in pairs(lines[username][value.name]) do
-                  line:setAB(line.a + (hbPos - hitboxPos[username][value.name]),
-                    line.b + (hbPos - hitboxPos[username][value.name]))
-                end
-                hitboxPos[username][value.name] = (value.region.fromVec + value.region.toVec) / 2
               end
-              if debug and raycast:aabb(eyePos, eyePos + (player:getLookDir() * 8), region) then
-                local diagonalLength = math.sqrt(
-                  (math.abs(value.region.toVec.x - value.region.fromVec.x) ^ 2) +
-                  (math.abs(value.region.toVec.z - value.region.fromVec.z) ^ 2)) + 0.1
-                if not models[value.name .. "_" .. username .. "_debug"] then
-                  models:newPart(value.name .. "_" .. username .. "_debug", "WORLD")
-                      :newPart(value.name .. "_" .. username .. "_debug_text", "CAMERA")
-                      :newText(value.name)
-                      :setText("Owner: " ..
-                        username ..
-                        "\nName: " ..
-                        value.name ..
-                        "\n\nMode: " ..
-                        value.mode .. "\nKey: " .. value.key .. "\nDistance: " .. value.distance)
-                      :setBackgroundColor(vectors.hexToRGB("#00000040"))
-                      :scale(0.2)
+              if username then
+                if value.mode == "Collider" then
+                  -- Simple axis-aligned collision logic
+                  local pPos = player:getPos()
+                  local bb = player:getBoundingBox()
+
+                  local pMin = vectors.vec3(
+                    pPos.x - bb.x / 2,
+                    pPos.y,
+                    pPos.z - bb.z / 2
+                  )
+                  local pMax = vectors.vec3(
+                    pPos.x + bb.x / 2,
+                    pPos.y + bb.y,
+                    pPos.z + bb.z / 2
+                  )
+
+                  local rMin = vectors.vec3(
+                    math.min(value.region.fromVec.x, value.region.toVec.x),
+                    math.min(value.region.fromVec.y, value.region.toVec.y),
+                    math.min(value.region.fromVec.z, value.region.toVec.z)
+                  )
+                  local rMax = vectors.vec3(
+                    math.max(value.region.fromVec.x, value.region.toVec.x),
+                    math.max(value.region.fromVec.y, value.region.toVec.y),
+                    math.max(value.region.fromVec.z, value.region.toVec.z)
+                  )
+
+                  rc = (pMin.x <= rMax.x and pMax.x >= rMin.x) and
+                      (pMin.y <= rMax.y and pMax.y >= rMin.y) and
+                      (pMin.z <= rMax.z and pMax.z >= rMin.z)
+                  currentPing = rc and (not value.key or keypresses[getKeyID(value.key)])
+                elseif value.mode == "Hitbox" then
+                  rc = raycast:aabb(eyePos, eyeEnd, region)
+                  currentPing = rc and (not value.key or keypresses[getKeyID(value.key)])
                 else
-                  models[value.name .. "_" .. username .. "_debug"]:setPos((
-                    vectors.rotateAroundAxis(-client:getCameraRot().y + 180, (
-                      (((diagonalLength / 2) * vec(1, 0, 0)))), vec(0, 1, 0)) +
-                    (math.abs(value.region.toVec.y - value.region.fromVec.y) * vec(0, 0.5, 0))
-                    + hitboxPos[username][value.name]) * 16)
+                  error(
+                    "§4§lInteractionsAPI:§r§4 \"" ..
+                    value.name ..
+                    "\" Mode definition error! Mode must be selected if a region is defined!§c", -1)
                 end
-              elseif models[value.name .. "_" .. username .. "_debug"] then
-                models[value.name .. "_" .. username .. "_debug"]:remove()
+                hbPos = (value.region.fromVec + value.region.toVec) / 2
+                lines[username] = lines[username] or {}
+                hitboxPos[username] = hitboxPos[username] or {}
+                if not lines[username][value.name] and ((rc and value.color) or debug) then
+                  lines[username][value.name] = drawHitbox(value.region.fromVec, value.region.toVec,
+                    value.color)
+                  hitboxPos[username][value.name] = (value.region.fromVec + value.region.toVec) / 2
+                elseif lines[username][value.name] and not (rc or debug) then
+                  for _, line in pairs(lines[username][value.name]) do
+                    line:free()
+                  end
+                  lines[username][value.name] = nil
+                elseif lines[username][value.name] and hbPos ~= hitboxPos[username][value.name] then
+                  for _, line in pairs(lines[username][value.name]) do
+                    line:setAB(line.a + (hbPos - hitboxPos[username][value.name]),
+                      line.b + (hbPos - hitboxPos[username][value.name]))
+                  end
+                  hitboxPos[username][value.name] = (value.region.fromVec + value.region.toVec) / 2
+                end
+                if debug and raycast:aabb(eyePos, eyePos + (player:getLookDir() * 8), region) then
+                  local diagonalLength = math.sqrt(
+                    (math.abs(value.region.toVec.x - value.region.fromVec.x) ^ 2) +
+                    (math.abs(value.region.toVec.z - value.region.fromVec.z) ^ 2)) + 0.1
+                  if not models[value.name .. "_" .. username .. "_debug"] then
+                    models:newPart(value.name .. "_" .. username .. "_debug", "WORLD")
+                        :newPart(value.name .. "_" .. username .. "_debug_text", "CAMERA")
+                        :newText(value.name)
+                        :setText("Owner: " ..
+                          username ..
+                          "\nName: " ..
+                          value.name ..
+                          "\n\nMode: " ..
+                          value.mode ..
+                          "\nKey: " ..
+                          value.key ..
+                          (value.mode ~= "Collider" and "\nDistance: " .. value.distance or ""))
+                        :setBackgroundColor(vectors.hexToRGB("#00000040"))
+                        :scale(0.2)
+                  else
+                    models[value.name .. "_" .. username .. "_debug"]:setPos((
+                      vectors.rotateAroundAxis(-client:getCameraRot().y + 180, (
+                        (((diagonalLength / 2) * vec(1, 0, 0)))), vec(0, 1, 0)) +
+                      (math.abs(value.region.toVec.y - value.region.fromVec.y) * vec(0, 0.5, 0))
+                      + hitboxPos[username][value.name]) * 16)
+                  end
+                elseif models[value.name .. "_" .. username .. "_debug"] then
+                  models[value.name .. "_" .. username .. "_debug"]:remove()
+                end
               end
             elseif value.key then
               currentPing = keypresses[getKeyID(value.key)]

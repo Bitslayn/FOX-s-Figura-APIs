@@ -3,7 +3,7 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's InteractionsAPI v1.1.2
+FOX's InteractionsAPI v1.1.3
 
 --]]
 
@@ -38,7 +38,7 @@ local InteractionsAPI = {}
 local interactions = {}
 
 
-local version = "v1.1.2" -- DO NOT TOUCH
+local version = "v1.1.3" -- DO NOT TOUCH
 avatar:store("InteractionsAPI",
   { version = version, config = { allowUndefinedRegions = allowUndefinedRegions } })
 
@@ -415,6 +415,12 @@ if host:isHost() then
               local eyePos = playerPos + vec(0, player:getEyeHeight(), 0)
               local eyeEnd = eyePos + (player:getLookDir() * value.distance)
               local region = { { value.region.fromVec, value.region.toVec } }
+              local username
+              for _, p in pairs(world.getPlayers()) do
+                if p:getUUID() == u then
+                  username = p:getName()
+                end
+              end
 
               if value.mode == "Collider" then
                 rc = raycast:aabb(playerPos, playerPos, region)
@@ -429,34 +435,30 @@ if host:isHost() then
                   "\" Mode definition error! Mode must be selected if a region is defined!§c", -1)
               end
               hbPos = (value.region.fromVec + value.region.toVec) / 2
-              if not lines[value.name] and ((rc and value.color) or debug) then
-                lines[value.name] = drawHitbox(value.region.fromVec, value.region.toVec, value.color)
-                hitboxPos[value.name] = (value.region.fromVec + value.region.toVec) / 2
-              elseif lines[value.name] and not (rc or debug) then
-                for _, line in pairs(lines[value.name]) do
+              lines[username] = lines[username] or {}
+              hitboxPos[username] = hitboxPos[username] or {}
+              if not lines[username][value.name] and ((rc and value.color) or debug) then
+                lines[username][value.name] = drawHitbox(value.region.fromVec, value.region.toVec, value.color)
+                hitboxPos[username][value.name] = (value.region.fromVec + value.region.toVec) / 2
+              elseif lines[username][value.name] and not (rc or debug) then
+                for _, line in pairs(lines[username][value.name]) do
                   line:free()
                 end
-                lines[value.name] = nil
-              elseif lines[value.name] and hbPos ~= hitboxPos[value.name] then
-                for _, line in pairs(lines[value.name]) do
-                  line:setAB(line.a + (hbPos - hitboxPos[value.name]),
-                    line.b + (hbPos - hitboxPos[value.name]))
+                lines[username][value.name] = nil
+              elseif lines[username][value.name] and hbPos ~= hitboxPos[username][value.name] then
+                for _, line in pairs(lines[username][value.name]) do
+                  line:setAB(line.a + (hbPos - hitboxPos[username][value.name]),
+                    line.b + (hbPos - hitboxPos[username][value.name]))
                 end
-                hitboxPos[value.name] = (value.region.fromVec + value.region.toVec) / 2
+                hitboxPos[username][value.name] = (value.region.fromVec + value.region.toVec) / 2
               end
               if debug and raycast:aabb(eyePos, eyePos + (player:getLookDir() * 8), region) then
-                local username
-                for _, p in pairs(world.getPlayers()) do
-                  if p:getUUID() == u then
-                    username = p:getName()
-                  end
-                end
                 local diagonalLength = math.sqrt(
                   (math.abs(value.region.toVec.x - value.region.fromVec.x) ^ 2) +
                   (math.abs(value.region.toVec.z - value.region.fromVec.z) ^ 2)) + 0.1
-                if not models[value.name .. "_debug"] then
-                  models:newPart(value.name .. "_debug", "WORLD")
-                      :newPart(value.name .. "_debug_text", "CAMERA")
+                if not models[value.name .. "_" .. username .. "_debug"] then
+                  models:newPart(value.name .. "_" .. username .. "_debug", "WORLD")
+                      :newPart(value.name .. "_" .. username .. "_debug_text", "CAMERA")
                       :newText(value.name)
                       :setText("Owner: " ..
                         username ..
@@ -467,14 +469,14 @@ if host:isHost() then
                       :setBackgroundColor(vectors.hexToRGB("#00000040"))
                       :scale(0.2)
                 else
-                  models[value.name .. "_debug"]:setPos((
+                  models[value.name .. "_" .. username .. "_debug"]:setPos((
                     vectors.rotateAroundAxis(-client:getCameraRot().y + 180, (
                       (((diagonalLength / 2) * vec(1, 0, 0)))), vec(0, 1, 0)) +
                     (math.abs(value.region.toVec.y - value.region.fromVec.y) * vec(0, 0.5, 0))
-                    + hitboxPos[value.name]) * 16)
+                    + hitboxPos[username][value.name]) * 16)
                 end
-              elseif models[value.name .. "_debug"] then
-                models[value.name .. "_debug"]:remove()
+              elseif models[value.name .. "_" .. username .. "_debug"] then
+                models[value.name .. "_" .. username .. "_debug"]:remove()
               end
             elseif value.key then
               currentPing = keypresses[getKeyID(value.key)]

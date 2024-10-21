@@ -3,7 +3,7 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's InteractionsAPI v1.1.4
+FOX's InteractionsAPI v1.1.5
 
 --]]
 
@@ -37,8 +37,10 @@ local InteractionsAPI = {}
 ---@field [string] InteractionsAPI
 local interactions = {}
 
+local lines = {}
 
-local version = "v1.1.4" -- DO NOT TOUCH
+
+local version = "v1.1.5" -- DO NOT TOUCH
 avatar:store("InteractionsAPI",
   { version = version, config = { allowUndefinedRegions = allowUndefinedRegions } })
 
@@ -193,6 +195,14 @@ function InteractionsAPI:remove()
     if t.name == self.name then
       tbl.interactions[i] = nil
     end
+  end
+
+  for _, line in pairs(lines[player:getName()][self.name]) do
+    line:free()
+  end
+  lines[player:getName()][self.name] = nil
+  if models[self.name .. "_" .. player:getName() .. "_debug"] then
+    models[self.name .. "_" .. player:getName() .. "_debug"]:remove()
   end
 
   interactions[self.name] = nil
@@ -389,7 +399,6 @@ local kb = keybinds:newKeybind("InteractionsAPI - Debug Mode", "key.keyboard.rig
           '["",{"text":"§lInteractionsAPI:§r Unable to enable debug mode! Please download "},{"text":"GNlineLib","underlined":true,"color":"blue","clickEvent":{"action":"open_url","value":"https://github.com/lua-gods/GNs-Avatar-2/blob/main/libraries/GNlineLib.lua"}},{"text":"!\n"}]')
       end
     end)
-local lines = {}
 local hitboxPos = {}
 local interactionOwners = {}
 

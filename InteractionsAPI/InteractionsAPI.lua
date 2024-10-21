@@ -3,7 +3,7 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's InteractionsAPI v1.1.5
+FOX's InteractionsAPI v1.1.6
 
 --]]
 
@@ -40,7 +40,7 @@ local interactions = {}
 local lines = {}
 
 
-local version = "v1.1.5" -- DO NOT TOUCH
+local version = "v1.1.6" -- DO NOT TOUCH
 avatar:store("InteractionsAPI",
   { version = version, config = { allowUndefinedRegions = allowUndefinedRegions } })
 
@@ -197,14 +197,6 @@ function InteractionsAPI:remove()
     end
   end
 
-  for _, line in pairs(lines[player:getName()][self.name]) do
-    line:free()
-  end
-  lines[player:getName()][self.name] = nil
-  if models[self.name .. "_" .. player:getName() .. "_debug"] then
-    models[self.name .. "_" .. player:getName() .. "_debug"]:remove()
-  end
-
   interactions[self.name] = nil
 
   avatar:store("InteractionsAPI", tbl)
@@ -331,7 +323,7 @@ local function drawHitbox(v, dv, color)
       color = vec(1, 1, 1)
     end
     if lineLib then
-      local lines = {
+      local lLines = {
         lineLib:new():setAB(v.x, v.y, v.z, v.x + (dv.x - v.x), v.y, v.z),
         lineLib:new():setAB(v.x + (dv.x - v.x), v.y, v.z, v.x + (dv.x - v.x), v.y, v.z + (dv.z - v.z)),
         lineLib:new():setAB(v.x + (dv.x - v.x), v.y, v.z + (dv.z - v.z), v.x, v.y, v.z + (dv.z - v.z)),
@@ -353,10 +345,10 @@ local function drawHitbox(v, dv, color)
           v.y + (dv.y - v.y), v.z + (dv.z - v.z)),
         lineLib:new():setAB(v.x, v.y, v.z + (dv.z - v.z), v.x, v.y + (dv.y - v.y), v.z + (dv.z - v.z)),
       }
-      for _, line in pairs(lines) do
+      for _, line in pairs(lLines) do
         line:setWidth(0.01):setColor(color):setDepth(-0.005) -- Depth is negative and half of width
       end
-      return lines
+      return lLines
     end
   end
   return {}
@@ -401,6 +393,7 @@ local kb = keybinds:newKeybind("InteractionsAPI - Debug Mode", "key.keyboard.rig
     end)
 local hitboxPos = {}
 local interactionOwners = {}
+local existingInteractions = {}
 
 local function getKeyID(ID)
   local previousKey = kb:getKey()
@@ -452,6 +445,16 @@ if host:isHost() then
                     models[value.name .. "_" .. p .. "_debug"]:remove()
                   end
                 end
+              end
+              local interactionExistsInTable = false
+              existingInteractions[username] = existingInteractions[username] or { name = username }
+              for _, it in pairs(existingInteractions[username]) do
+                if it == value.name then
+                  interactionExistsInTable = true
+                end
+              end
+              if interactionExistsInTable == false then
+                table.insert(existingInteractions[username], value.name)
               end
               if username then
                 if value.mode == "Collider" then
@@ -577,6 +580,48 @@ if host:isHost() then
             prePing[uint][i].lastPing = currentPing
             if prePing[uint][i].firstTime then
               prePing[uint][i].firstTime = false
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
+-- If interaction existed but was removed
+if host:isHost() then
+  function events.tick()
+    for _, plr in pairs(existingInteractions) do
+      for i, it in pairs(plr) do
+        if i ~= "name" then
+          if world.getPlayers()[plr.name] and world.getPlayers()[plr.name]:getVariable("InteractionsAPI") then
+            if world.getPlayers()[plr.name]:getVariable("InteractionsAPI")["interactions"] then
+              local exists = false
+              for _, value in pairs(world.getPlayers()[plr.name]:getVariable("InteractionsAPI")["interactions"]) do
+                if value.name == it then
+                  exists = true
+                end
+              end
+              if exists == false then
+                -- Remove hitbox and debug text
+                if lines[plr.name][it] then
+                  for _, line in pairs(lines[plr.name][it]) do
+                    line:free()
+                  end
+                end
+                lines[plr.name][it] = nil
+                if models[it .. "_" .. plr.name .. "_debug"] then
+                  models[it .. "_" .. plr.name .. "_debug"]:remove()
+                end
+
+                -- Ping false if true
+                local u = tostring(client.uuidToIntArray(world.getPlayers()[plr.name]:getUUID()))
+                if player:getVariable("InteractionsAPI")["pings"] and player:getVariable("InteractionsAPI")["pings"][u][tostring(i)] then
+                  pings.iapiPing(u, i, false)
+                end
+
+                existingInteractions[plr.name][i] = nil
+              end
             end
           end
         end

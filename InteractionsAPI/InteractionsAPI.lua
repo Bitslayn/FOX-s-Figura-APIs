@@ -3,7 +3,7 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's InteractionsAPI v1.1.6
+FOX's InteractionsAPI v1.2.0
 
 --]]
 
@@ -38,9 +38,10 @@ local InteractionsAPI = {}
 local interactions = {}
 
 local lines = {}
+local targeted = {}
 
 
-local version = "v1.1.6" -- DO NOT TOUCH
+local version = "v1.2.0" -- DO NOT TOUCH
 avatar:store("InteractionsAPI",
   { version = version, config = { allowUndefinedRegions = allowUndefinedRegions } })
 
@@ -123,6 +124,7 @@ end
 ---Get the region vectors and the mode for this interaction
 ---@param self InteractionsAPI
 ---@return table
+---@nodiscard
 function InteractionsAPI:getRegion()
   return { region = self.region, mode = self.mode, distance = self.distance }
 end
@@ -133,6 +135,7 @@ end
 ---Get key defined for this interaction
 ---@param self InteractionsAPI
 ---@return Minecraft.keyCode
+---@nodiscard
 function InteractionsAPI:getKey()
   return self.key
 end
@@ -143,6 +146,7 @@ end
 ---Gets the interaction's hitbox color
 ---@param self InteractionsAPI
 ---@return string|Vector3
+---@nodiscard
 function InteractionsAPI:getColor()
   return self.color
 end
@@ -153,6 +157,7 @@ end
 ---Gets the interaction's name
 ---@param self InteractionsAPI
 ---@return string
+---@nodiscard
 function InteractionsAPI:getName()
   return self.name
 end
@@ -163,8 +168,27 @@ end
 ---Gets swing frequency when interacting
 ---@param self InteractionsAPI
 ---@return InteractionSwingFrequency
+---@nodiscard
 function InteractionsAPI:getSwing()
   return self.swing
+end
+
+-- ~========================================~
+-- GET TARGETED INTERACTION
+
+---Returns the name, position, and owner of the interaction you're looking at
+---@param self interactions
+---@return string # Interaction name
+---@return Vector3 # Interaction position
+---@return string # Interaction owner
+---@nodiscard
+---@diagnostic disable: missing-return-value
+function interactions:getTargetedInteraction()
+  if #targeted ~= 0 then
+    return targeted[1], targeted[2], targeted[3]
+  else
+    return
+  end
 end
 
 -- ~================================================================================~
@@ -405,6 +429,8 @@ end
 -- Process interactions needing to be pinged
 if host:isHost() then
   function events.tick()
+    local targetedInteractions = {}
+    local target = {}
     for u, t in pairs(world.avatarVars()) do
       for k, v in pairs(t) do
         if k == "InteractionsAPI" and v["interactions"] then
@@ -457,6 +483,7 @@ if host:isHost() then
                 table.insert(existingInteractions[username], value.name)
               end
               if username then
+                local hbPos = (value.region.fromVec + value.region.toVec) / 2
                 if value.mode == "Collider" then
                   -- Simple axis-aligned collision logic
                   local pPos = player:getPos()
@@ -491,25 +518,32 @@ if host:isHost() then
                 elseif value.mode == "Hitbox" then
                   rc = raycast:aabb(eyePos, eyeEnd, region)
                   currentPing = rc and (not value.key or keypresses[getKeyID(value.key)])
+                  if rc then
+                    table.insert(targetedInteractions, value.name)
+                    targetedInteractions[#targetedInteractions] = {
+                      uint, i, currentPing, hbPos, (player:getPos() - hbPos):length(), value,
+                      username,
+                    }
+                  end
                 else
                   error(
                     "§4§lInteractionsAPI:§r§4 \"" ..
                     value.name ..
                     "\" Mode definition error! Mode must be selected if a region is defined!§c", -1)
                 end
-                hbPos = (value.region.fromVec + value.region.toVec) / 2
                 lines[username] = lines[username] or {}
                 hitboxPos[username] = hitboxPos[username] or {}
-                if not lines[username][value.name] and ((rc and value.color) or debug) then
+                if not lines[username][value.name] and ((rc and value.color and value.mode == "Collider") or debug) then
                   lines[username][value.name] = drawHitbox(value.region.fromVec, value.region.toVec,
                     value.color)
                   hitboxPos[username][value.name] = (value.region.fromVec + value.region.toVec) / 2
-                elseif lines[username][value.name] and not (rc or debug) then
+                elseif lines[username][value.name] and not (debug or rc) then
                   for _, line in pairs(lines[username][value.name]) do
                     line:free()
                   end
                   lines[username][value.name] = nil
                 elseif lines[username][value.name] and hbPos ~= hitboxPos[username][value.name] then
+                  -- Move if position changes
                   for _, line in pairs(lines[username][value.name]) do
                     line:setAB(line.a + (hbPos - hitboxPos[username][value.name]),
                       line.b + (hbPos - hitboxPos[username][value.name]))
@@ -530,8 +564,7 @@ if host:isHost() then
                           value.name ..
                           "\n\nMode: " ..
                           value.mode ..
-                          "\nKey: " ..
-                          value.key ..
+                          (value.key and "\nKey: " .. value.key or "") ..
                           (value.mode ~= "Collider" and "\nDistance: " .. value.distance or ""))
                         :setBackgroundColor(vectors.hexToRGB("#00000040"))
                         :scale(0.2)
@@ -556,31 +589,91 @@ if host:isHost() then
                 -1)
             end
 
-            if not prePing[uint] then
-              prePing[uint] = {}
-            end
-
-            if not prePing[uint][i] then
-              prePing[uint][i] = { lastPing = false, firstTime = true }
-            end
-
             currentPing = currentPing or false
+          end
+        end
+      end
+    end
+    -- After all interactions have been calculated
+    local s = 1000
+    for _, v in pairs(targetedInteractions) do
+      if v[5] < s then
+        s = v[5]
+        target = { v[1], v[2], v[3], v[4], v[5], v[6], v[7] }
+      end
+    end
 
-            if (currentPing and not prePing[uint][i].lastPing) or (not currentPing and prePing[uint][i].lastPing) then
-              pings.iapiPing(uint, i, currentPing)
-              if value.swing == "Once" and currentPing == true then
-                host:swingArm()
-              end
-            end
+    -- target = {[1] uint, [2] i, [3] currentPing, [4] hbPos}
+    -- v = {[6] = value, [7] = username}
+    -- Remove hitbox of untargeted
+    for _, v in pairs(targetedInteractions) do
+      if (v[1] ~= target[1] or v[2] ~= target[2]) and not debug then
+        if lines[v[7]][v[6].name] then
+          for _, line in pairs(lines[v[7]][v[6].name]) do
+            line:free()
+          end
+          lines[v[7]][v[6].name] = nil
+        end
+      end
+    end
 
-            if prePing[uint][i].lastPing and player:getSwingTime() == 0 and value.swing == "Every Tick" then
-              host:swingArm()
-            end
+    targeted = {}
+    if target[1] then
+      targeted = { target[6].name, target[4], target[7] }
 
-            prePing[uint][i].lastPing = currentPing
-            if prePing[uint][i].firstTime then
-              prePing[uint][i].firstTime = false
-            end
+      -- Hitbox
+      lines[target[7]] = lines[target[7]] or {}
+      hitboxPos[target[7]] = hitboxPos[target[7]] or {}
+      if not lines[target[7]][target[6].name] and target[6].color then
+        lines[target[7]][target[6].name] = drawHitbox(target[6].region.fromVec,
+          target[6].region.toVec,
+          target[6].color)
+        hitboxPos[target[7]][target[6].name] = (target[6].region.fromVec + target[6].region.toVec) /
+            2
+      elseif lines[target[7]][target[6].name] and target[4] ~= hitboxPos[target[7]][target[6].name] then
+        -- Move if position changes
+        for _, line in pairs(lines[target[7]][target[6].name]) do
+          line:setAB(line.a + (target[4] - hitboxPos[target[7]][target[6].name]),
+            line.b + (target[4] - hitboxPos[target[7]][target[6].name]))
+        end
+        hitboxPos[target[7]][target[6].name] = (target[6].region.fromVec + target[6].region.toVec) /
+            2
+      end
+
+      -- Ping
+      if not prePing[target[1]] then
+        prePing[target[1]] = {}
+      end
+
+      if not prePing[target[1]][target[2]] then
+        prePing[target[1]][target[2]] = { lastPing = false, firstTime = true }
+      end
+
+
+      if (target[3] and not prePing[target[1]][target[2]].lastPing) or (not target[3] and prePing[target[1]][target[2]].lastPing) then
+        pings.iapiPing(target[1], target[2], target[3])
+        if target[6].swing == "Once" and target[3] == true then
+          host:swingArm()
+        end
+      end
+
+      if prePing[target[1]][target[2]].lastPing and player:getSwingTime() == 0 and target[6].swing == "Every Tick" then
+        host:swingArm()
+      end
+
+      prePing[target[1]][target[2]].lastPing = target[3]
+      if prePing[target[1]][target[2]].firstTime then
+        prePing[target[1]][target[2]].firstTime = false
+      end
+    end
+
+    -- Ping false if true and not the target
+    if player:getVariable("InteractionsAPI")["pings"] then
+      for a, t in pairs(player:getVariable("InteractionsAPI")["pings"]) do
+        for b, c in pairs(t) do
+          if c and (tonumber(a) ~= target[1] and tonumber(b) ~= target[2]) then
+            pings.iapiPing(a, tonumber(b), false)
+            prePing[a][tonumber(b)].lastPing = false
           end
         end
       end
@@ -616,7 +709,7 @@ if host:isHost() then
 
                 -- Ping false if true
                 local u = tostring(client.uuidToIntArray(world.getPlayers()[plr.name]:getUUID()))
-                if player:getVariable("InteractionsAPI")["pings"] and player:getVariable("InteractionsAPI")["pings"][u][tostring(i)] then
+                if player:getVariable("InteractionsAPI")["pings"] and player:getVariable("InteractionsAPI")["pings"][u] and player:getVariable("InteractionsAPI")["pings"][u][tostring(i)] then
                   pings.iapiPing(u, i, false)
                 end
 

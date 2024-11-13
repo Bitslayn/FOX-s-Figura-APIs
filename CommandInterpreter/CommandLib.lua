@@ -3,7 +3,7 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Command Interpreter v0.9.0
+FOX's Command Interpreter v0.9.1
 
 A command interpreter with command suggestions just like Vanilla
 
@@ -24,18 +24,22 @@ local CommandLib = {}
 commands = CommandLib
 
 ---Create a new command or update an existing command
----@param cmd string
----@param val table|function
+---@param cmd string|table
+---@param val? table|function
 function CommandLib:command(cmd, val)
-  commandTable[cmd] = val
+  if type(cmd) == "string" then
+    commandTable[cmd] = val or {}
+  else
+    commandTable = cmd
+  end
 end
 
 ---Return the table or function of a command
----@param cmd string
+---@param cmd? string
 ---@return table|function
 ---@nodiscard
 function CommandLib:getCommand(cmd)
-  return commandTable[cmd]
+  return cmd and commandTable[cmd] or commandTable
 end
 
 ---Change the command prefix<br>Defaults to `.`
@@ -52,6 +56,20 @@ end
 ---@nodiscard
 function CommandLib:getPrefix()
   return prefix
+end
+
+---Return entries sorted in alphabetical order
+---@param list? table
+function table.sortAlphabetically(list)
+  local entries = {}
+  -- Build a table of strings
+  for key in pairs(list) do
+    table.insert(entries, key)
+  end
+
+  -- Sort the table
+  table.sort(entries)
+  return entries
 end
 
 --============================================================--
@@ -156,10 +174,9 @@ if host:isHost() then
           end
         end
 
-
         -- Append new command suggestions
         ---@param value string
-        for value in pairs(commandSuggestions) do
+        for _, value in pairs(table.sortAlphabetically(commandSuggestions)) do
           if value ~= "__call" then
             if string.match(value, "^" .. (lastChatText:sub(#lastChatText, #lastChatText):match("%s") and "" or (path[#path] or ""):gsub("%-", "%%-"))) then
               table.insert(gui.suggestions,

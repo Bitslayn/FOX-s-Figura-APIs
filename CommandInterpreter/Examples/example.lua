@@ -30,6 +30,8 @@ local function never(args)
   print(args)
 end
 
+commands:command({foo = {}, bar = {}}) -- Passing a table instead of the command's name is supported (This will replace all commands registered before this function)
+
 commands:command("fox", { sound = playFoxScreech })         -- Functions passed into a command get ran
 commands:command("this-command-has-a-really-long-name", {}) -- You can pass empty tables into it and it won't error
 commands:command("prefix", { __call = changePrefix, reset = resetPrefix, ["return"] = getPrefix })

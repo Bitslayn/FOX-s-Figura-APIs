@@ -3,9 +3,14 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Command Interpreter v0.9.1
+FOX's Command Interpreter v0.9.2
 
 A command interpreter with command suggestions just like Vanilla
+
+Features
+  Custom chat commands with a settable prefix
+  Command suggestions shown through an actual GUI
+  Pressing arrow keys and tab to autocomplete
 
 --]]
 
@@ -13,7 +18,6 @@ A command interpreter with command suggestions just like Vanilla
 -- Lib Functions
 --============================================================--
 
--- local config = config:setName("commandlib")
 local commandTable = {}
 local prefix = config:load("prefix") or "."
 
@@ -119,7 +123,8 @@ if host:isHost() then
         if type(run) == "table" and run[value] then
           run = run[value]
         else
-          table.insert(args, value)
+          -- Return the correct type argument
+          table.insert(args, tonumber(value) or value)
         end
       end
       if type(run) == "function" then
@@ -165,9 +170,7 @@ if host:isHost() then
           -- If the command has subcommands
           if commandSuggestions[value] then
             if type(commandSuggestions[value]) == "table" then
-              if lastChatText:sub(#lastChatText, #lastChatText):match("%s") then
-                commandSuggestions = commandSuggestions[value]
-              end
+              commandSuggestions = commandSuggestions[value]
             else
               commandSuggestions = {}
             end
@@ -180,16 +183,19 @@ if host:isHost() then
           if value ~= "__call" then
             if string.match(value, "^" .. (lastChatText:sub(#lastChatText, #lastChatText):match("%s") and "" or (path[#path] or ""):gsub("%-", "%%-"))) then
               table.insert(gui.suggestions,
-                guiPivot:newText("_suggestion" .. #gui.suggestions):setShadow(true):setText(value))
+                guiPivot:newText("_suggestion" .. #gui.suggestions):setShadow(true):setText(
+                  '{"text":"' .. value .. '","color":"' .. "#A8A8A8" .. '"}'))
             end
           end
         end
 
         -- Highlight currently selected command
-        gui.suggestedCommand:setText(#gui.suggestions ~= 0 and
-          gui.suggestions[(highlighted or 0) + 1] and
-          gui.suggestions[(highlighted or 0) + 1]:getText():gsub("§.", ""):gsub(
-            (path[#path] or ""):gsub("%-", "%%-"), "") or "")
+        gui.suggestedCommand:setText(
+          #gui.suggestions ~= 0 and gui.suggestions[(highlighted or 0) + 1] -- If there are any command suggestions
+          and gui.suggestions[(highlighted or 0) + 1]:getText() -- Get the texttask text
+          :gsub('{"text":"', ""):gsub('","color":"#......"}', "") -- Strip the json from the returned text
+          :gsub("^" .. (path[#path] or ""):gsub("%-", "%%-"), "") -- Gsub from the beginning of the command at the end of the path, replacing all "-" with literals
+          or "")
       elseif #gui.suggestions ~= 0 then
         -- If there are any suggestions displayed but the chat is closed then remove suggestions
         for _, line in pairs(gui.suggestions) do
@@ -207,7 +213,7 @@ if host:isHost() then
 
   local function scroll(s)
     if (host:getChatText() or ""):sub(#prefix, #prefix) == prefix then
-      highlighted = ((highlighted or 0) + s) % #gui.suggestions
+      highlighted = ((highlighted or 0) - s) % #gui.suggestions
       lastChatText = nil
     end
   end
@@ -220,7 +226,8 @@ if host:isHost() then
     -- Tab
     if action == 1 and key == 258 then
       if gui.suggestions[(highlighted or 0) + 1] then
-        host:setChatText(host:getChatText() .. gui.suggestedCommand:getText())
+        host:setChatText(host:getChatText() ..
+          gui.suggestedCommand:getText():gsub('{"text":"', ""):gsub('","color":"#......"}', ""))
       end
     end
     -- Up arrow
@@ -254,8 +261,9 @@ if host:isHost() then
       line:setPos(
         -client.getTextWidth(host:getChatText() and host:getChatText():gsub("%s", "..") or "") - 4,
         -client.getScaledWindowSize().y + client.getTextHeight(line:getText()) + 16 +
-        ((i - 1) * 12)
-      ):setText((i == (highlighted or 0) + 1 and "§e" or "§7") .. line:getText())
+        ((#gui.suggestions - i) * 12)
+      ):setText(line:getText():gsub("#......",
+        (i == (highlighted or 0) + 1 and "#FCFC00" or "#A8A8A8"))) -- Set text and color of command suggestions
     end
     local width = 0
     for _, value in pairs(gui.suggestions) do
@@ -276,3 +284,5 @@ if host:isHost() then
     gui.suggestedCommand:setVisible(host:isChatOpen() and host:getChatText() ~= "")
   end
 end
+
+return commands

@@ -3,12 +3,12 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Command Interpreter v0.9.2
+FOX's Command Interpreter v0.9.3
 
 A command interpreter with command suggestions just like Vanilla
 
 Features
-  Custom chat commands with a settable prefix
+  Custom commands with a configurable prefix
   Command suggestions shown through an actual GUI
   Pressing arrow keys and tab to autocomplete
 
@@ -30,7 +30,7 @@ commands = CommandLib
 ---Create a new command or update an existing command
 ---@param cmd string|table
 ---@param val? table|function
-function CommandLib:command(cmd, val)
+function CommandLib:commandTable(cmd, val)
   if type(cmd) == "string" then
     commandTable[cmd] = val or {}
   else
@@ -42,8 +42,14 @@ end
 ---@param cmd? string
 ---@return table|function
 ---@nodiscard
-function CommandLib:getCommand(cmd)
+function CommandLib:getCommandTable(cmd)
   return cmd and commandTable[cmd] or commandTable
+end
+
+---Removes a command
+---@param cmd string
+function CommandLib:removeCommandTable(cmd)
+  commandTable[cmd] = nil
 end
 
 ---Change the command prefix<br>Defaults to `.`
@@ -62,64 +68,92 @@ function CommandLib:getPrefix()
   return prefix
 end
 
----Return entries sorted in alphabetical order
----@param list? table
-function table.sortAlphabetically(list)
-  local entries = {}
-  -- Build a table of strings
-  for key in pairs(list) do
-    table.insert(entries, key)
-  end
-
-  -- Sort the table
-  table.sort(entries)
-  return entries
-end
-
 --============================================================--
--- Setup
+-- GUI Customization
 --============================================================--
 
 if host:isHost() then
-  local guiPivot = models:newPart("_hud", "Hud"):setPos(0, 0, -3 * 100)
-
-  -- Create the gui sprites
-  local texture = {
-    background = textures:newTexture("_background", 195, 122),
-    divider = textures:newTexture("_divider", 2, 1),
+  -- Create element anchors
+  local guiPivot = {
+    front = models:newPart("_FOX_CL-m-f", "Hud"):setPos(0, 0, -3 * 100), -- GUI elements which display on top of the vanilla HUD
+    back = models:newPart("_FOX_CL-m-b", "Hud"):setPos(0, 0, 3 * 100),   -- GUI elements which display behind the vanilla HUD
   }
 
-  -- Texture the gui sprites
-  local size = texture.background:getDimensions()
-  texture.background:fill(0, 0, size.x, size.y, vectors.hexToRGB("#00000040"))
-  texture.divider:setPixel(0, 0, vectors.hexToRGB("#ffffff"))
-
-  -- Create the gui elements
-  local gui = {
-    suggestedCommand = guiPivot:newText("_suggested"):setShadow(true),
-    ---@type table<integer, TextTask>
-    suggestions = {},
-    suggestionsBackground = {
-      background = guiPivot:newSprite("_background")
-          :setTexture(texture.background):setRenderType("TRANSLUCENT"),
-      dividers = {
-        lower = guiPivot:newSprite("_lowerDivider"),
-        upper = guiPivot:newSprite("_upperDivider"),
+  -- Assign colors
+  local color = {
+    suggestionWindow = {
+      -- Takes color as string
+      suggestions = {
+        deselected = "#A8A8A8",
+        selected = "#FCFC00",
       },
+      -- Takes color as vector
+      background = vectors.hexToRGB("#000000"),
+      divider = vectors.hexToRGB("#ffffff"),
+    },
+    chat = {
+      -- Takes color as string
+      suggestion = "#ffffff", -- Unused
+    },
+    info = {
+      -- Takes color as string
+      text = "#ffffff", -- Unused
+      -- Takes color as vector
+      background = vectors.hexToRGB("#000000"),
     },
   }
 
+  -- Create textures
+  local texture = {
+    suggestionWindow = {
+      background = textures:newTexture("_FOX_CL-t-sb", 1, 1)
+          :setPixel(0, 0, color.suggestionWindow.background),
+      divider = textures:newTexture("_FOX_CL-t-sd", 2, 1)
+          :setPixel(0, 0, color.suggestionWindow.divider),
+    },
+    info = {
+      background = textures:newTexture("_FOX_CL-t-ib", 1, 1),
+    },
+  }
+
+  -- Create elements
+  local gui = {
+    suggestionWindow = {
+      ---@type table<integer, TextTask>
+      suggestions = {},
+      background = guiPivot.front:newSprite("_FOX_CL-s-sb")
+          :setTexture(texture.suggestionWindow.background),
+      divider = {
+        lower = guiPivot.front:newSprite("_FOX_CL-s-sdl")
+            :setTexture(texture.suggestionWindow.divider),
+        upper = guiPivot.front:newSprite("_FOX_CL-s-sdu")
+            :setTexture(texture.suggestionWindow.divider),
+      },
+    },
+    chat = {
+      suggestion = guiPivot.back:newText("_FOX_CL-x-cs"):setShadow(true),
+    },
+    info = {
+      text = guiPivot.back:newText("_FOX_CL-x-it"):setShadow(true),
+      background = guiPivot.back:newSprite("_FOX_CL-s-ib")
+          :setTexture(texture.info.background),
+    },
+  }
+
+  -- Rendering of the GUI is at the bottom. Rendering should always happen after the command suggestion flow
+
   --============================================================--
-  -- Command Interpretation
+  -- Command Handler
   --============================================================--
 
   -- Handle sending custom chat commands
   function events.chat_send_message(msg)
     if msg:sub(#prefix, #prefix) == prefix then
-      -- Run the command function
       local run = commandTable
       local args = {}
-      for value in string.gmatch(msg:sub(#prefix + 1, #msg), "([^" .. "%s" .. "]+)") do
+
+      -- Find arguments
+      for value in string.gmatch(msg:sub(#prefix + 1, #msg), "[^%s]*") do
         if type(run) == "table" and run[value] then
           run = run[value]
         else
@@ -127,11 +161,18 @@ if host:isHost() then
           table.insert(args, tonumber(value) or value)
         end
       end
+
+      -- Run the command function
       if type(run) == "function" then
-        pcall(args == {} and run or run(args))
-      end
-      if type(run) == "table" and run["__call"] then
-        pcall(args == {} and run["__call"] or run["__call"](args))
+        -- Run function
+        pcall(next(args) == nil and run or run(args))
+      elseif type(run) == "table" then
+        -- Run function in __call or [1] of table
+        if run["__call"] then
+          pcall(next(args) == nil and run["__call"] or run["__call"](args))
+        elseif run[1] then
+          pcall(next(args) == nil and run[1] or run[1](args))
+        end
       end
 
       -- The command did send, add it to the chat history
@@ -142,8 +183,27 @@ if host:isHost() then
     return msg
   end
 
+  --============================================================--
+  -- Command Interpretation
+  --============================================================--
+
+  ---Return entries sorted in alphabetical order
+  ---@param list? table
+  function table.sortAlphabetically(list)
+    local entries = {}
+    -- Build a table of strings
+    for key in pairs(list) do
+      table.insert(entries, tostring(key))
+    end
+
+    -- Sort the table
+    table.sort(entries)
+    return entries
+  end
+
   local highlighted = 0
   local lastChatText
+  local lastSuggestionsPath
 
   -- Evaluate command suggestions based on what's typed into chat
   function events.render()
@@ -153,81 +213,112 @@ if host:isHost() then
       -- Run this only with the prefix
       if host:isChatOpen() and host:getChatText():match("^[" .. prefix .. "]") then
         -- Clear the last command suggestions
-        for _, line in pairs(gui.suggestions) do
+        for _, line in pairs(gui.suggestionWindow.suggestions) do
           line:remove()
         end
-        gui.suggestions = {}
+        gui.suggestionWindow.suggestions = {}
+
+        -- Return the literal string for lua patterns
+        function literal(str)
+          return str:gsub(".", function(char)
+            -- If special character then add %
+            if char:match("[%p%c%s]") then
+              return "%" .. char
+            else
+              return char
+            end
+          end)
+        end
 
         -- Split the chat text at each space
         local path = {}
-        for str in string.gmatch(lastChatText:sub(#prefix + 1, #lastChatText), "([^" .. "%s" .. "]+)") do
+        for str in string.gmatch(lastChatText:sub(#prefix + 1, #lastChatText), "[^%s]*") do
+          str = literal(str) -- Replace everything in path with literals
           table.insert(path, str)
+        end
+        if path[#path] == "" then -- If the last entry is blank then set it to nil
+          path[#path] = nil
         end
 
         -- Suggest subcommands
+        local suggestionsPath = ""
         local commandSuggestions = commandTable
         for _, value in pairs(path) do
           -- If the command has subcommands
           if commandSuggestions[value] then
+            suggestionsPath = suggestionsPath .. " " .. value
             if type(commandSuggestions[value]) == "table" then
               commandSuggestions = commandSuggestions[value]
             else
               commandSuggestions = {}
             end
+          elseif not commandSuggestions[path[#path]] and lastChatText:sub(#lastChatText, #lastChatText) == " " then
+            commandSuggestions = {}
           end
         end
 
-        -- Append new command suggestions
+        -- Detect if suggestions path has changed
+        if lastSuggestionsPath ~= suggestionsPath then
+          lastSuggestionsPath = suggestionsPath
+          -- Reset the highlighted suggestion
+          highlighted = 0
+        end
+
+        -- Append new command suggestions based on what's typed into chat
         ---@param value string
         for _, value in pairs(table.sortAlphabetically(commandSuggestions)) do
-          if value ~= "__call" then
+          if not (value:match("^__") or tonumber(value)) then
             if string.match(value, "^" .. (lastChatText:sub(#lastChatText, #lastChatText):match("%s") and "" or (path[#path] or ""):gsub("%-", "%%-"))) then
-              table.insert(gui.suggestions,
-                guiPivot:newText("_suggestion" .. #gui.suggestions):setShadow(true):setText(
-                  '{"text":"' .. value .. '","color":"' .. "#A8A8A8" .. '"}'))
+              table.insert(gui.suggestionWindow.suggestions,
+                guiPivot.front:newText("_FOX_CL-x-ss" .. #gui.suggestionWindow.suggestions)
+                :setShadow(true)
+                :setText(
+                  '{"text":"' ..
+                  value .. '","color":"' .. color.suggestionWindow.suggestions.deselected .. '"}'))
             end
           end
         end
 
+        -- Detect if list of suggestions displayed is less than before
+
+
         -- Highlight currently selected command
-        gui.suggestedCommand:setText(
-          #gui.suggestions ~= 0 and gui.suggestions[(highlighted or 0) + 1] -- If there are any command suggestions
-          and gui.suggestions[(highlighted or 0) + 1]:getText() -- Get the texttask text
-          :gsub('{"text":"', ""):gsub('","color":"#......"}', "") -- Strip the json from the returned text
-          :gsub("^" .. (path[#path] or ""):gsub("%-", "%%-"), "") -- Gsub from the beginning of the command at the end of the path, replacing all "-" with literals
+        gui.chat.suggestion:setText(
+          #gui.suggestionWindow.suggestions ~= 0 and
+          gui.suggestionWindow.suggestions[highlighted + 1] and       -- If there are any command suggestions
+          gui.suggestionWindow.suggestions[highlighted + 1]:getText() -- Get the texttask text
+          :gsub('{"text":"', ""):gsub('","color":"#......"}', "")     -- Strip the json from the returned text
+          :gsub("^" .. (path[#path] or ""), "")                       -- Gsub from the beginning of the command at the end of the path
           or "")
-      elseif #gui.suggestions ~= 0 then
+      elseif #gui.suggestionWindow.suggestions ~= 0 then
         -- If there are any suggestions displayed but the chat is closed then remove suggestions
-        for _, line in pairs(gui.suggestions) do
+        for _, line in pairs(gui.suggestionWindow.suggestions) do
           line:remove()
         end
-        gui.suggestions = {}
-        gui.suggestedCommand:setText("")
+        gui.suggestionWindow.suggestions = {}
+        gui.chat.suggestion:setText("")
+        lastSuggestionsPath = nil
       end
     end
   end
 
   --============================================================--
-  -- Handle Keypresses
+  -- Keypress Handler
   --============================================================--
 
   local function scroll(s)
     if (host:getChatText() or ""):sub(#prefix, #prefix) == prefix then
-      highlighted = ((highlighted or 0) - s) % #gui.suggestions
+      highlighted = (highlighted - s) % #gui.suggestionWindow.suggestions
       lastChatText = nil
     end
   end
 
   function events.key_press(key, action)
-    -- Prefix button
-    if action == 1 and key == string.byte(prefix) and not host:isChatOpen() then
-      highlighted = 0
-    end
     -- Tab
     if action == 1 and key == 258 then
-      if gui.suggestions[(highlighted or 0) + 1] then
+      if gui.suggestionWindow.suggestions[highlighted + 1] then
         host:setChatText(host:getChatText() ..
-          gui.suggestedCommand:getText():gsub('{"text":"', ""):gsub('","color":"#......"}', ""))
+          gui.chat.suggestion:getText():gsub('{"text":"', ""):gsub('","color":"#......"}', ""))
       end
     end
     -- Up arrow
@@ -242,10 +333,10 @@ if host:isHost() then
 
   -- Cancel pressing the up or down arrows when typing a command
   keybinds:newKeybind("Up Arrow", "key.keyboard.up", true):setOnPress(function()
-    return #gui.suggestions ~= 0
+    return #gui.suggestionWindow.suggestions ~= 0
   end)
   keybinds:newKeybind("Down Arrow", "key.keyboard.down", true):setOnPress(function()
-    return #gui.suggestions ~= 0
+    return #gui.suggestionWindow.suggestions ~= 0
   end)
 
   --============================================================--
@@ -253,35 +344,34 @@ if host:isHost() then
   --============================================================--
 
   function events.render()
-    if (highlighted or 0) + 1 > #gui.suggestions or highlighted == nil then
-      highlighted = 0
-    end
     -- Dynamically position all gui elements
-    for i, line in pairs(gui.suggestions) do
+    for i, line in pairs(gui.suggestionWindow.suggestions) do
       line:setPos(
         -client.getTextWidth(host:getChatText() and host:getChatText():gsub("%s", "..") or "") - 4,
         -client.getScaledWindowSize().y + client.getTextHeight(line:getText()) + 16 +
-        ((#gui.suggestions - i) * 12)
+        ((#gui.suggestionWindow.suggestions - i) * 12)
       ):setText(line:getText():gsub("#......",
-        (i == (highlighted or 0) + 1 and "#FCFC00" or "#A8A8A8"))) -- Set text and color of command suggestions
+        (i == highlighted + 1 and color.suggestionWindow.suggestions.selected or color.suggestionWindow.suggestions.deselected))) -- Set text and color of command suggestions
     end
     local width = 0
-    for _, value in pairs(gui.suggestions) do
+    for _, value in pairs(gui.suggestionWindow.suggestions) do
       width = math.max(width, client.getTextWidth(value:getText()) + 1)
     end
-    gui.suggestionsBackground.background:setSize(width, (12 * #gui.suggestions) + 2) -- Scale based on suggestion lines
+    gui.suggestionWindow.background:setSize(width, (12 * #gui.suggestionWindow.suggestions) + 2) -- Scale based on suggestion lines
         :setPos(
           -client.getTextWidth(host:getChatText() and host:getChatText():gsub("%s", "..") or "") - 3,
-          -client.getScaledWindowSize().y + gui.suggestionsBackground.background:getSize().y + 14
+          -client.getScaledWindowSize().y + gui.suggestionWindow.background:getSize().y + 14
         )
-    gui.suggestedCommand:setPos(
+    gui.chat.suggestion:setPos(
       -client.getTextWidth(host:getChatText() and host:getChatText():gsub("%s", "..") or "") - 4,
       -client.getScaledWindowSize().y + 12
     )
 
+    local visibility = host:isChatOpen() and #gui.suggestionWindow.suggestions ~= 0
+
     -- Set the visibility of all gui elements
-    gui.suggestionsBackground.background:setVisible(host:isChatOpen() and #gui.suggestions ~= 0)
-    gui.suggestedCommand:setVisible(host:isChatOpen() and host:getChatText() ~= "")
+    gui.suggestionWindow.background:setVisible(visibility)
+    gui.chat.suggestion:setVisible(visibility)
   end
 end
 

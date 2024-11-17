@@ -3,7 +3,7 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Command Interpreter v0.9.3
+FOX's Command Interpreter v0.9.4
 
 A command interpreter with command suggestions just like Vanilla
 
@@ -101,6 +101,7 @@ if host:isHost() then
       -- Takes color as vector
       background = vectors.hexToRGB("#000000"),
     },
+    transparent = vec(0, 0, 0, 0),
   }
 
   -- Create textures
@@ -109,10 +110,12 @@ if host:isHost() then
       background = textures:newTexture("_FOX_CL-t-sb", 1, 1)
           :setPixel(0, 0, color.suggestionWindow.background),
       divider = textures:newTexture("_FOX_CL-t-sd", 2, 1)
-          :setPixel(0, 0, color.suggestionWindow.divider),
+          :setPixel(0, 0, color.suggestionWindow.divider)
+          :setPixel(1, 0, color.transparent),
     },
     info = {
-      background = textures:newTexture("_FOX_CL-t-ib", 1, 1),
+      background = textures:newTexture("_FOX_CL-t-ib", 1, 1)
+          :setPixel(0, 0, color.info.background),
     },
   }
 
@@ -125,18 +128,19 @@ if host:isHost() then
           :setTexture(texture.suggestionWindow.background),
       divider = {
         lower = guiPivot.front:newSprite("_FOX_CL-s-sdl")
-            :setTexture(texture.suggestionWindow.divider),
+            :setTexture(texture.suggestionWindow.divider, 2, 1),
         upper = guiPivot.front:newSprite("_FOX_CL-s-sdu")
-            :setTexture(texture.suggestionWindow.divider),
+            :setTexture(texture.suggestionWindow.divider, 2, 1),
       },
     },
     chat = {
       suggestion = guiPivot.back:newText("_FOX_CL-x-cs"):setShadow(true),
     },
     info = {
-      text = guiPivot.back:newText("_FOX_CL-x-it"):setShadow(true),
-      background = guiPivot.back:newSprite("_FOX_CL-s-ib")
-          :setTexture(texture.info.background),
+      text = guiPivot.front:newText("_FOX_CL-x-it"):setShadow(true),
+      background = guiPivot.front:newSprite("_FOX_CL-s-ib")
+          :setTexture(texture.info.background)
+          :setSize(client.getScaledWindowSize().x, 12),
     },
   }
 
@@ -167,9 +171,9 @@ if host:isHost() then
         -- Run function
         pcall(next(args) == nil and run or run(args))
       elseif type(run) == "table" then
-        -- Run function in __call or [1] of table
-        if run["__call"] then
-          pcall(next(args) == nil and run["__call"] or run["__call"](args))
+        -- Run function in _func or [1] of table
+        if run["_func"] then
+          pcall(next(args) == nil and run["_func"] or run["_func"](args))
         elseif run[1] then
           pcall(next(args) == nil and run[1] or run[1](args))
         end
@@ -201,9 +205,16 @@ if host:isHost() then
     return entries
   end
 
+  local suggestionsLimit = 10
+  local suggestionsOffset = 0
+  local logicalSuggestionOffset = 0
+  local logicalSuggestionOffsetTop = 0
   local highlighted = 0
   local lastChatText
   local lastSuggestionsPath
+  local lastSuggestionsCount = 0
+
+  local rawPath
 
   -- Evaluate command suggestions based on what's typed into chat
   function events.render()
@@ -233,6 +244,7 @@ if host:isHost() then
         -- Split the chat text at each space
         local path = {}
         for str in string.gmatch(lastChatText:sub(#prefix + 1, #lastChatText), "[^%s]*") do
+          rawPath = str
           str = literal(str) -- Replace everything in path with literals
           table.insert(path, str)
         end
@@ -256,18 +268,19 @@ if host:isHost() then
             commandSuggestions = {}
           end
         end
+        gui.info.text:setText(commandSuggestions._desc or nil)
 
         -- Detect if suggestions path has changed
         if lastSuggestionsPath ~= suggestionsPath then
           lastSuggestionsPath = suggestionsPath
-          -- Reset the highlighted suggestion
+          -- Reset the highlighted suggestion and remove all texttasks
           highlighted = 0
         end
 
         -- Append new command suggestions based on what's typed into chat
         ---@param value string
         for _, value in pairs(table.sortAlphabetically(commandSuggestions)) do
-          if not (value:match("^__") or tonumber(value)) then
+          if not (value:match("^_") or tonumber(value)) then
             if string.match(value, "^" .. (lastChatText:sub(#lastChatText, #lastChatText):match("%s") and "" or (path[#path] or ""):gsub("%-", "%%-"))) then
               table.insert(gui.suggestionWindow.suggestions,
                 guiPivot.front:newText("_FOX_CL-x-ss" .. #gui.suggestionWindow.suggestions)
@@ -280,7 +293,22 @@ if host:isHost() then
         end
 
         -- Detect if list of suggestions displayed is less than before
+        if #gui.suggestionWindow.suggestions < lastSuggestionsCount then
+          -- Reset the highlighted suggestion
+          highlighted = 0
+        end
+        lastSuggestionsCount = #gui.suggestionWindow.suggestions
 
+        -- Reset the offset
+        if highlighted == 0 then
+          suggestionsOffset = #gui.suggestionWindow.suggestions -
+              math.min(suggestionsLimit, #gui.suggestionWindow.suggestions)
+          logicalSuggestionOffsetTop = suggestionsOffset
+        elseif highlighted + 1 == #gui.suggestionWindow.suggestions then
+          suggestionsOffset = 0
+        end
+
+        logicalSuggestionOffset = logicalSuggestionOffsetTop - suggestionsOffset
 
         -- Highlight currently selected command
         gui.chat.suggestion:setText(
@@ -290,15 +318,19 @@ if host:isHost() then
           :gsub('{"text":"', ""):gsub('","color":"#......"}', "")     -- Strip the json from the returned text
           :gsub("^" .. (path[#path] or ""), "")                       -- Gsub from the beginning of the command at the end of the path
           or "")
-      elseif #gui.suggestionWindow.suggestions ~= 0 then
-        -- If there are any suggestions displayed but the chat is closed then remove suggestions
-        for _, line in pairs(gui.suggestionWindow.suggestions) do
-          line:remove()
-        end
-        gui.suggestionWindow.suggestions = {}
-        gui.chat.suggestion:setText("")
-        lastSuggestionsPath = nil
       end
+    end
+    if (not host:isChatOpen() or host:getChatText() == "") and #gui.suggestionWindow.suggestions ~= 0 then
+      -- If there are any suggestions displayed but the chat is closed then remove suggestions
+      for _, line in pairs(gui.suggestionWindow.suggestions) do
+        line:remove()
+      end
+      gui.suggestionWindow.suggestions = {}
+      gui.chat.suggestion:setText("")
+      lastSuggestionsPath = nil
+    end
+    if host:getChatText() == "" and gui.info.text:getText() ~= nil then
+      gui.info.text:setText(nil)
     end
   end
 
@@ -306,10 +338,38 @@ if host:isHost() then
   -- Keypress Handler
   --============================================================--
 
-  local function scroll(s)
+  local function scroll(delta)
     if (host:getChatText() or ""):sub(#prefix, #prefix) == prefix then
-      highlighted = (highlighted - s) % #gui.suggestionWindow.suggestions
+      highlighted = (highlighted - delta) % #gui.suggestionWindow.suggestions
       lastChatText = nil
+    end
+  end
+
+  local function getHovered()
+    local mousePos = -(client.getMousePos() / client.getWindowSize()) * client.getScaledWindowSize()
+    local corner1 = gui.suggestionWindow.background:getPos().xy
+    local corner2 = gui.suggestionWindow.background:getPos().xy -
+        gui.suggestionWindow.background:getSize()
+    if corner1 > mousePos and mousePos > corner2 then
+      local hovered = math.ceil(-(-((corner2.y + 1 - mousePos.y) / 12) - math.min(suggestionsLimit, #gui.suggestionWindow.suggestions)) +
+        logicalSuggestionOffset - 1)
+      if gui.suggestionWindow.suggestions[hovered + 1] and gui.suggestionWindow.suggestions[hovered + 1]:isVisible() then -- Make sure suggestion is actually visible
+        return hovered
+      end
+    end
+  end
+
+  function events.mouse_move()
+    highlighted = getHovered() or highlighted
+    lastChatText = nil
+  end
+
+  function events.mouse_scroll(delta)
+    if getHovered() ~= nil then
+      if suggestionsOffset + delta < logicalSuggestionOffsetTop + 1 and suggestionsOffset + delta > -1 then
+        suggestionsOffset = suggestionsOffset + delta
+        lastChatText = nil
+      end
     end
   end
 
@@ -324,10 +384,26 @@ if host:isHost() then
     -- Up arrow
     if action ~= 0 and key == 265 then
       scroll(1)
+      if highlighted - logicalSuggestionOffset + 1 < 1 then
+        suggestionsOffset = suggestionsOffset + 1
+      end
     end
     -- Down arrow
     if action ~= 0 and key == 264 then
       scroll(-1)
+      if highlighted - logicalSuggestionOffset + 1 > suggestionsLimit then
+        suggestionsOffset = suggestionsOffset - 1
+      end
+    end
+  end
+
+  function events.mouse_press(button, action)
+    -- Left mouse button
+    if action == 1 and button == 0 then
+      if getHovered() ~= nil then
+        host:setChatText(host:getChatText() ..
+          gui.chat.suggestion:getText():gsub('{"text":"', ""):gsub('","color":"#......"}', ""))
+      end
     end
   end
 
@@ -339,39 +415,104 @@ if host:isHost() then
     return #gui.suggestionWindow.suggestions ~= 0
   end)
 
+  -- Cancel clicking or scrolling when hovering over command suggestions
+  keybinds:newKeybind("Left Mouse Button", "key.mouse.left", true):setOnPress(function()
+    return #gui.suggestionWindow.suggestions ~= 0 and getHovered() ~= nil
+  end)
+
   --============================================================--
   -- GUI Render
   --============================================================--
 
   function events.render()
-    -- Dynamically position all gui elements
-    for i, line in pairs(gui.suggestionWindow.suggestions) do
-      line:setPos(
-        -client.getTextWidth(host:getChatText() and host:getChatText():gsub("%s", "..") or "") - 4,
-        -client.getScaledWindowSize().y + client.getTextHeight(line:getText()) + 16 +
-        ((#gui.suggestionWindow.suggestions - i) * 12)
-      ):setText(line:getText():gsub("#......",
-        (i == highlighted + 1 and color.suggestionWindow.suggestions.selected or color.suggestionWindow.suggestions.deselected))) -- Set text and color of command suggestions
-    end
-    local width = 0
-    for _, value in pairs(gui.suggestionWindow.suggestions) do
-      width = math.max(width, client.getTextWidth(value:getText()) + 1)
-    end
-    gui.suggestionWindow.background:setSize(width, (12 * #gui.suggestionWindow.suggestions) + 2) -- Scale based on suggestion lines
-        :setPos(
-          -client.getTextWidth(host:getChatText() and host:getChatText():gsub("%s", "..") or "") - 3,
-          -client.getScaledWindowSize().y + gui.suggestionWindow.background:getSize().y + 14
-        )
-    gui.chat.suggestion:setPos(
-      -client.getTextWidth(host:getChatText() and host:getChatText():gsub("%s", "..") or "") - 4,
-      -client.getScaledWindowSize().y + 12
-    )
+    -- Set the visibility of everything
+    local suggestionVisibility = host:isChatOpen() and #gui.suggestionWindow.suggestions ~= 0
+    local infoVisibility = host:isChatOpen() and gui.info.text:getText() ~= nil
 
-    local visibility = host:isChatOpen() and #gui.suggestionWindow.suggestions ~= 0
+    gui.suggestionWindow.background:setVisible(suggestionVisibility)
+    gui.suggestionWindow.divider.lower:setVisible(suggestionVisibility and suggestionsOffset ~= 0)
+    gui.suggestionWindow.divider.upper:setVisible(suggestionVisibility and
+      suggestionsOffset ~= logicalSuggestionOffsetTop)
+    gui.chat.suggestion:setVisible(suggestionVisibility)
+    gui.info.background:setVisible(infoVisibility)
+    gui.info.text:setVisible(infoVisibility)
 
-    -- Set the visibility of all gui elements
-    gui.suggestionWindow.background:setVisible(visibility)
-    gui.chat.suggestion:setVisible(visibility)
+    -- Set the position and scale of everything
+    if host:isChatOpen() then
+      -- Find position of chat caret
+      local chatCaretPos = client.getTextWidth(host:getChatText() and
+        host:getChatText():gsub("%s", "..") or "")
+
+      -- Find width of longest chat suggestion
+      local maxWidth = 0
+      for _, value in pairs(gui.suggestionWindow.suggestions) do
+        maxWidth = math.max(maxWidth, client.getTextWidth(value:getText()) + 1)
+      end
+
+      --==========--
+
+      -- Command suggestion window background
+      gui.suggestionWindow.background:setSize(maxWidth,
+        math.min((12 * #gui.suggestionWindow.suggestions), (12 * suggestionsLimit)) + 2) -- Scale to fit with the maximum width of all command suggestions
+
+      -- Find the suggestion window size
+      local suggestWindowSize = gui.suggestionWindow.background:getSize()
+
+      gui.suggestionWindow.background:setPos(
+        -chatCaretPos - 3 + client.getTextWidth(rawPath or ""),
+        -client.getScaledWindowSize().y + suggestWindowSize.y + 14
+      )
+
+      -- Find the suggestion window position
+      local suggestWindowPos = gui.suggestionWindow.background:getPos()
+
+      -- Command suggestion window text
+      for i, line in pairs(gui.suggestionWindow.suggestions) do
+        -- Every command suggestion texttask in the suggestion window
+        line:setPos(
+          suggestWindowPos.x - 1,
+          suggestWindowPos.y - suggestWindowSize.y + 11 +
+          ((#gui.suggestionWindow.suggestions - i - suggestionsOffset) * 12))
+            :setText(line:getText():gsub("#......",
+              (i == highlighted + 1 and color.suggestionWindow.suggestions.selected or color.suggestionWindow.suggestions.deselected))) -- Set text and color of command suggestions
+            :setVisible(i < (suggestionsLimit + 1) + logicalSuggestionOffset and
+              i > logicalSuggestionOffset)
+      end
+
+      -- Command suggestion window dividers
+      gui.suggestionWindow.divider.lower:setSize(maxWidth, 1):setRegion(maxWidth, 1)
+          :setPos(suggestWindowPos + vec(
+            0,
+            -suggestWindowSize.y + 1,
+            -1 -- Layer above command suggestion window
+          ))
+      gui.suggestionWindow.divider.upper:setSize(maxWidth, 1):setRegion(maxWidth, 1)
+          :setPos(suggestWindowPos + vec(
+            0,
+            0,
+            -1 -- Layer above command suggestion window
+          ))
+
+      --==========--
+
+      -- Command suggestion in chat
+      gui.chat.suggestion:setPos(
+        -chatCaretPos - 4,
+        -client.getScaledWindowSize().y + 12
+      )
+
+      --==========--
+
+      -- Command info bar
+      gui.info.background:setPos(
+        0,
+        -client.getScaledWindowSize().y + 27,
+        1                   -- Layer below command suggestion window
+      )
+      gui.info.text:setPos( -- Text anchored to background
+        gui.info.background:getPos() + vec(0, -2, 0)
+      )
+    end
   end
 end
 

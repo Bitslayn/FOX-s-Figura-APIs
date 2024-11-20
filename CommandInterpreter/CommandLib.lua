@@ -3,7 +3,7 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Command Interpreter v0.9.4
+FOX's Command Interpreter v0.9.5
 
 A command interpreter with command suggestions just like Vanilla
 
@@ -15,50 +15,301 @@ Features
 --]]
 
 --============================================================--
+-- API Config handler
+--============================================================--
+
+local configFile = "CommandLib"
+
+---Save config from file. Does the same thing as `config:setName(file):save(name, value)` but also reverts the set file name so other configs aren't affected. Like setting the file name temporarily.
+---@param file string
+---@param name string
+---@param value any
+local function saveConfig(file, name, value)
+  -- Store the name of the config file previously targeted
+  local prevConfig = config:getName()
+  -- Save to this library's config file
+  config:setName(file):save(name, value)
+  -- Restore the config file to its previous target for other scripts
+  config:setName(prevConfig)
+end
+
+---Load config from file. Does the same thing as `config:setName(file):load(name)` but also reverts the set file name so other configs aren't affected. Like setting the file name temporarily.
+---@param file string # The name of the file to load this configuration from
+---@param name string # The name of the config to load
+---@return any
+---@nodiscard
+local function loadConfig(file, name)
+  -- Store the name of the config file previously targeted
+  local prevConfig = config:getName()
+  -- Load from this library's config file
+  local load = config:setName(file):load(name)
+  -- Restore the config file to its previous target for other scripts
+  config:setName(prevConfig)
+  -- Return the loaded value
+  return load
+end
+
+--============================================================--
 -- Lib Functions
 --============================================================--
 
 local commandTable = {}
-local prefix = config:load("prefix") or "."
+local prefix = loadConfig(configFile, "commandPrefix") or "."
+local suggestionsLimit = 10
 
 ---@meta _
 ---@class CommandLib
-local CommandLib = {}
+local CommandLib = {
+  __path = nil, -- The command path, used with non-table oriented functions. *Not to be referenced outside the API*
+}
+CommandLib.__index = CommandLib
+
+---Advanced functions that modify the command registry directly
+---@type CommandLib.tables
+CommandLib.tables = {}
 
 commands = CommandLib
 
+---@class CommandLib.tables
+local tables = {}
+
 ---Create a new command or update an existing command
----@param cmd string|table
----@param val? table|function
-function CommandLib:commandTable(cmd, val)
-  if type(cmd) == "string" then
-    commandTable[cmd] = val or {}
+---@param p1 string|table # Either the name of a table entry or a table itself. Setting this to a table will overwrite all other commands!
+---@param p2? function|table # Table of subcommands and or fields, or a function
+function tables:commandTable(p1, p2)
+  if type(p1) == "string" then
+    commandTable[p1] = p2 or {}
   else
-    commandTable = cmd
+    commandTable = p1
   end
 end
 
 ---Return the table or function of a command
----@param cmd? string
----@return table|function
+---@param p1? string # Name of table entry (command), returns entire table of all commands if nothing is entered here
+---@return function|table
 ---@nodiscard
-function CommandLib:getCommandTable(cmd)
-  return cmd and commandTable[cmd] or commandTable
+function tables:getCommandTable(p1)
+  return p1 and commandTable[p1] or commandTable
 end
 
 ---Removes a command
----@param cmd string
-function CommandLib:removeCommandTable(cmd)
-  commandTable[cmd] = nil
+---@param p1 string # Name of table entry (command)
+function tables:removeCommandTable(p1)
+  commandTable[p1] = nil
 end
 
+CommandLib.tables = tables
+
+--====================-
+
+-- Commands
+
+---Creates a command, can be chained to create subcommands
+---@param name string
+---@return CommandLib
+function CommandLib:createCommand(name)
+  local this -- Localize self
+
+  -- Localized path
+  if not self.__path then
+    -- If there is no path (The first command in the tree)
+    this = setmetatable({
+      __path = { name },
+    }, CommandLib)
+  else
+    -- If there is a path
+    this = setmetatable({
+      __path = { table.unpack(self.__path) },
+    }, CommandLib)
+    -- Insert into path
+    table.insert(this.__path, name)
+  end
+
+  -- Modify command table
+  local tablePath = commandTable
+  for _, value in pairs(this.__path) do
+    if tablePath[value] then
+      tablePath = tablePath[value]
+    else
+      tablePath[value] = {}
+      tablePath = tablePath[value]
+    end
+  end
+
+  return this -- Return localized self for chaining
+end
+
+---Returns a command's table
+---@return table
+---@nodiscard
+function CommandLib:getCommand()
+  -- Check if path exists
+  if self.__path then
+    -- Locate command table for this command
+    local tablePath = commandTable
+    for i, value in pairs(self.__path) do
+      tablePath = tablePath[value]
+    end
+    return tablePath
+  else
+    error("Could not return the command nil", 2)
+  end
+end
+
+---Removes a command
+function CommandLib:removeCommand()
+  -- Check if path exists
+  if self.__path then
+    -- Locate command table for this command
+    local tablePath = commandTable
+    for i, value in pairs(self.__path) do
+      if i ~= #self.__path then
+        tablePath = tablePath[value]
+      else
+        -- Remove the command
+        tablePath[value] = nil
+      end
+    end
+
+    -- Clear the path
+    self.__path = nil
+  else
+    error("Could not remove the command nil", 2)
+  end
+end
+
+-- Functions
+
+---Sets the function of a command
+---@param fun function
+---@param packed? boolean # Whether or not to pack arguments into a table before running the function. Unpacked arguments takes as many arguments as the function can take. `Defaults to false`
+---@return CommandLib
+function CommandLib:setFunction(fun, packed)
+  -- Check if path exists
+  if self.__path then
+    -- Locate command table for this command
+    local tablePath = commandTable
+    for _, value in pairs(self.__path) do
+      tablePath = tablePath[value]
+    end
+
+    -- Set the function for this command
+    tablePath._func = fun
+
+    -- Set whether arguments passed into this function are packed into a table
+    tablePath._args = tablePath._args or {}
+    tablePath._args._packed = packed or false
+  else
+    error("Could not assign a function to nil", 2)
+  end
+  return self -- Return self for chaining
+end
+
+---Return the function assigned to this command
+---@return function|nil
+---@nodiscard
+function CommandLib:getFunction()
+  -- Check if path exists
+  if self.__path then
+    -- Locate command table for this command
+    local tablePath = commandTable
+    for _, value in pairs(self.__path) do
+      tablePath = tablePath[value]
+    end
+
+    -- Return the function
+    return tablePath._func
+  else
+    error("Could not return function of command nil", 2)
+  end
+end
+
+---Removes a command's function
+---@return CommandLib
+function CommandLib:removeFunction()
+  -- Check if path exists
+  if self.__path then
+    -- Locate command table for this command
+    local tablePath = commandTable
+    for _, value in pairs(self.__path) do
+      tablePath = tablePath[value]
+    end
+
+    -- Remove function
+    tablePath._func = nil
+  else
+    error("Could not remove function of the command nil", 2)
+  end
+  return self -- Return self for chaining
+end
+
+---Sets this command's info to display in the status box
+---@param info any
+---@return CommandLib
+function CommandLib:setInfo(info)
+  -- Check if path exists
+  if self.__path then
+    -- Locate command table for this command
+    local tablePath = commandTable
+    for _, value in pairs(self.__path) do
+      tablePath = tablePath[value]
+    end
+
+    -- Set the info for this command
+    tablePath._info = info
+  else
+    error("Could not assign a function to nil", 2)
+  end
+  return self -- Return self for chaining
+end
+
+---Return the command's info
+---@return string
+---@nodiscard
+function CommandLib:getInfo()
+  -- Check if path exists
+  if self.__path then
+    -- Locate command table for this command
+    local tablePath = commandTable
+    for _, value in pairs(self.__path) do
+      tablePath = tablePath[value]
+    end
+
+    -- Return the info
+    return tablePath._info
+  else
+    error("Could not return function of command nil", 2)
+  end
+end
+
+---Removes a command's info
+---@return CommandLib
+function CommandLib:removeInfo()
+  -- Check if path exists
+  if self.__path then
+    -- Locate command table for this command
+    local tablePath = commandTable
+    for _, value in pairs(self.__path) do
+      tablePath = tablePath[value]
+    end
+
+    -- Remove info
+    tablePath._info = nil
+  else
+    error("Could not remove info of the command nil", 2)
+  end
+  return self -- Return self for chaining
+end
+
+--====================-
+
 ---Change the command prefix<br>Defaults to `.`
----@param pfx? string # The prefix to set
----@param persist? boolean # Should the prefix be persistent? (Save to config)
+---@param pfx? string # The prefix to apply
+---@param persist? boolean # Should the prefix be saved to the config?
 function CommandLib:setPrefix(pfx, persist)
   prefix = pfx or "."
   if persist then
-    config:save("prefix", prefix)
+    saveConfig(configFile, "commandPrefix", pfx)
   end
 end
 
@@ -66,6 +317,22 @@ end
 ---@nodiscard
 function CommandLib:getPrefix()
   return prefix
+end
+
+---Sets the maximum amount of commands that can be displayed at once<br>Defaults to 10
+---@param num? number # The number of suggestions
+---@param persist? boolean # Should this save to the config?
+function CommandLib:setMaxSuggestions(num, persist)
+  suggestionsLimit = math.max(num or 10, 0)
+  if persist then
+    saveConfig(configFile, "maxSuggestions", num)
+  end
+end
+
+---Returns the number of suggestions that can be displayed at once
+---@nodiscard
+function CommandLib:getMaxSuggestions()
+  return suggestionsLimit
 end
 
 --============================================================--
@@ -77,6 +344,15 @@ if host:isHost() then
   local guiPivot = {
     front = models:newPart("_FOX_CL-m-f", "Hud"):setPos(0, 0, -3 * 100), -- GUI elements which display on top of the vanilla HUD
     back = models:newPart("_FOX_CL-m-b", "Hud"):setPos(0, 0, 3 * 100),   -- GUI elements which display behind the vanilla HUD
+  }
+
+  local lang = {
+    errors = {
+      unknownCommand = client.getTranslatedString("command.unknown.command"),
+      executionError = client.getTranslatedString("command.failed"),
+      notationHere = client.getTranslatedString("command.context.here"),
+      notationError = "[error]",
+    },
   }
 
   -- Assign colors
@@ -166,17 +442,50 @@ if host:isHost() then
         end
       end
 
+      -- Find _args
+      local argsMeta
+      if type(run) == "table" and run._args then
+        argsMeta = run._args
+      end
+      local pack = (argsMeta and argsMeta._packed) and argsMeta._packed or false
+
+      local status, res
+
+      -- Find function
+      if type(run) == "table" then
+        run = run["_func"] or run[1]
+      end
+
       -- Run the command function
       if type(run) == "function" then
-        -- Run function
-        pcall(next(args) == nil and run or run(args))
-      elseif type(run) == "table" then
-        -- Run function in _func or [1] of table
-        if run["_func"] then
-          pcall(next(args) == nil and run["_func"] or run["_func"](args))
-        elseif run[1] then
-          pcall(next(args) == nil and run[1] or run[1](args))
+        -- Run with arguments packed or unpacked
+        if pack then
+          status, res = table.pack(pcall(run, args))
+        else
+          status, res = table.pack(pcall(run, table.unpack(args)))
         end
+      end
+
+      -- Print error to chat
+      if status ~= nil then
+        if not status then
+          printJson(toJson(
+            {
+              { text = lang.errors.executionError .. "\n" .. lang.errors.notationError, color = "red" },
+              { text = " " .. player:getName() .. " ",                                  color = "white" },
+              { text = ": " .. res .. "\n",                                             color = "red" },
+            }
+          ))
+        end
+      else
+        -- Unknown or incomplete command
+        printJson(toJson(
+          {
+            { text = lang.errors.unknownCommand .. "\n",                       color = "red" },
+            { text = host:getChatText():sub(#prefix + 1, #host:getChatText()), underlined = true },
+            { text = lang.errors.notationHere,                                 underlined = false, italic = true },
+          }
+        ))
       end
 
       -- The command did send, add it to the chat history
@@ -205,7 +514,6 @@ if host:isHost() then
     return entries
   end
 
-  local suggestionsLimit = 10
   local suggestionsOffset = 0
   local logicalSuggestionOffset = 0
   local logicalSuggestionOffsetTop = 0
@@ -221,6 +529,9 @@ if host:isHost() then
     -- Run this only when the chat changes
     if host:getChatText() ~= lastChatText then
       lastChatText = host:getChatText()
+      -- Set the chat color
+      host:setChatColor(vectors.hexToRGB((host:isChatOpen() and host:getChatText():match("^[" .. prefix .. "]")) and
+        "Gray" or "White"))
       -- Run this only with the prefix
       if host:isChatOpen() and host:getChatText():match("^[" .. prefix .. "]") then
         -- Clear the last command suggestions
@@ -268,7 +579,7 @@ if host:isHost() then
             commandSuggestions = {}
           end
         end
-        gui.info.text:setText(commandSuggestions._desc or nil)
+        gui.info.text:setText(commandSuggestions._info or nil)
 
         -- Detect if suggestions path has changed
         if lastSuggestionsPath ~= suggestionsPath then
@@ -429,10 +740,14 @@ if host:isHost() then
     local suggestionVisibility = host:isChatOpen() and #gui.suggestionWindow.suggestions ~= 0
     local infoVisibility = host:isChatOpen() and gui.info.text:getText() ~= nil
 
-    gui.suggestionWindow.background:setVisible(suggestionVisibility)
-    gui.suggestionWindow.divider.lower:setVisible(suggestionVisibility and suggestionsOffset ~= 0)
+    gui.suggestionWindow.background:setVisible(suggestionVisibility and
+      suggestionsLimit > 0)
+    gui.suggestionWindow.divider.lower:setVisible(suggestionVisibility and
+      suggestionsOffset ~= 0 and
+      suggestionsLimit > 0)
     gui.suggestionWindow.divider.upper:setVisible(suggestionVisibility and
-      suggestionsOffset ~= logicalSuggestionOffsetTop)
+      suggestionsOffset ~= logicalSuggestionOffsetTop and
+      suggestionsLimit > 0)
     gui.chat.suggestion:setVisible(suggestionVisibility)
     gui.info.background:setVisible(infoVisibility)
     gui.info.text:setVisible(infoVisibility)
@@ -460,7 +775,8 @@ if host:isHost() then
 
       gui.suggestionWindow.background:setPos(
         -chatCaretPos - 3 + client.getTextWidth(rawPath or ""),
-        -client.getScaledWindowSize().y + suggestWindowSize.y + 14
+        -client.getScaledWindowSize().y + suggestWindowSize.y +
+        14 + (gui.info.background:isVisible() and 13 or 0)
       )
 
       -- Find the suggestion window position

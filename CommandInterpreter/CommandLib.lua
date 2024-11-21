@@ -3,7 +3,7 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Command Interpreter v0.9.5
+FOX's Command Interpreter v0.9.6
 
 A command interpreter with command suggestions just like Vanilla
 
@@ -101,6 +101,16 @@ end
 CommandLib.tables = tables
 
 --====================-
+
+-- Hotfix
+
+local hotfix = false
+
+---Whether or not to apply the 1.21 hotfix
+---@param bool boolean
+function CommandLib:apply121Hotfix(bool)
+  hotfix = bool
+end
 
 -- Commands
 
@@ -244,7 +254,7 @@ function CommandLib:removeFunction()
 end
 
 ---Sets this command's info to display in the status box
----@param info any
+---@param info string
 ---@return CommandLib
 function CommandLib:setInfo(info)
   -- Check if path exists
@@ -314,6 +324,7 @@ function CommandLib:setPrefix(pfx, persist)
 end
 
 ---Return the command prefix
+---@return string
 ---@nodiscard
 function CommandLib:getPrefix()
   return prefix
@@ -330,6 +341,7 @@ function CommandLib:setMaxSuggestions(num, persist)
 end
 
 ---Returns the number of suggestions that can be displayed at once
+---@return number
 ---@nodiscard
 function CommandLib:getMaxSuggestions()
   return suggestionsLimit
@@ -360,22 +372,32 @@ if host:isHost() then
     suggestionWindow = {
       -- Takes color as string
       suggestions = {
-        deselected = "#A8A8A8",
-        selected = "#FCFC00",
+        deselected = "#a8a8a8",
+        selected = "#ffff00",
       },
       -- Takes color as vector
-      background = vectors.hexToRGB("#000000"),
-      divider = vectors.hexToRGB("#ffffff"),
+      background = vectors.hexToRGB("black"),
+      divider = vectors.hexToRGB("white"),
     },
     chat = {
       -- Takes color as string
-      suggestion = "#ffffff", -- Unused
+      suggestion = "white",
+      normal = "white",
+      command = {
+        normal = "gray",
+        invalid = "#ff5555", -- Red
+      },
+      arguments = {
+        "#55ffff", -- Aqua
+        "#ffff55", -- Yellow
+        "#55ff55", -- Green
+        "#ff55ff", -- Light Purple
+        "#ffaa00", -- Gold
+      },
     },
     info = {
-      -- Takes color as string
-      text = "#ffffff", -- Unused
       -- Takes color as vector
-      background = vectors.hexToRGB("#000000"),
+      background = vectors.hexToRGB("black"),
     },
     transparent = vec(0, 0, 0, 0),
   }
@@ -523,15 +545,13 @@ if host:isHost() then
   local lastSuggestionsCount = 0
 
   local rawPath
+  local commandValid = false
 
   -- Evaluate command suggestions based on what's typed into chat
   function events.render()
     -- Run this only when the chat changes
     if host:getChatText() ~= lastChatText then
       lastChatText = host:getChatText()
-      -- Set the chat color
-      host:setChatColor(vectors.hexToRGB((host:isChatOpen() and host:getChatText():match("^[" .. prefix .. "]")) and
-        "Gray" or "White"))
       -- Run this only with the prefix
       if host:isChatOpen() and host:getChatText():match("^[" .. prefix .. "]") then
         -- Clear the last command suggestions
@@ -564,21 +584,23 @@ if host:isHost() then
         end
 
         -- Suggest subcommands
-        local suggestionsPath = ""
+        local suggestionsPath
         local commandSuggestions = commandTable
         for _, value in pairs(path) do
           -- If the command has subcommands
           if commandSuggestions[value] then
-            suggestionsPath = suggestionsPath .. " " .. value
+            suggestionsPath = suggestionsPath and suggestionsPath .. " " .. value or value
             if type(commandSuggestions[value]) == "table" then
               commandSuggestions = commandSuggestions[value]
             else
               commandSuggestions = {}
             end
-          elseif not commandSuggestions[path[#path]] and lastChatText:sub(#lastChatText, #lastChatText) == " " then
-            commandSuggestions = {}
+          elseif lastChatText:sub(#lastChatText, #lastChatText) == " " then
+            return
           end
         end
+
+        -- Set the info text
         gui.info.text:setText(commandSuggestions._info or nil)
 
         -- Detect if suggestions path has changed
@@ -629,7 +651,18 @@ if host:isHost() then
           :gsub('{"text":"', ""):gsub('","color":"#......"}', "")     -- Strip the json from the returned text
           :gsub("^" .. (path[#path] or ""), "")                       -- Gsub from the beginning of the command at the end of the path
           or "")
+
+        -- Set whether the command is valid or not
+        commandValid = (suggestionsPath == table.concat(path, " ")) or -- Make the chat red if a command isn't completely typed out
+            -- Make the chat gray if the command would execute a function and arguments are being typed
+            ((type(commandSuggestions) == "table" and type(commandSuggestions._func or commandSuggestions[1]) == "function") and gui.chat.suggestion:getText() == "") or
+            -- Make the chat gray if only the prefix is typed and nothing else
+            host:getChatText() == prefix
       end
+      -- Set the chat color
+      host:setChatColor(vectors.hexToRGB((host:isChatOpen() and host:getChatText():match("^[" .. prefix .. "]")) and
+        (commandValid and color.chat.command.normal or color.chat.command.invalid) or
+        color.chat.normal))
     end
     if (not host:isChatOpen() or host:getChatText() == "") and #gui.suggestionWindow.suggestions ~= 0 then
       -- If there are any suggestions displayed but the chat is closed then remove suggestions
@@ -751,6 +784,14 @@ if host:isHost() then
     gui.chat.suggestion:setVisible(suggestionVisibility)
     gui.info.background:setVisible(infoVisibility)
     gui.info.text:setVisible(infoVisibility)
+
+    -- Hotfix
+    if goofy then
+      goofy:setDisableGUIElement("CHAT", suggestionVisibility and hotfix)
+      renderer:setRenderHUD(not (infoVisibility and hotfix))
+    else
+      renderer:setRenderHUD(not (suggestionVisibility and hotfix))
+    end
 
     -- Set the position and scale of everything
     if host:isChatOpen() then

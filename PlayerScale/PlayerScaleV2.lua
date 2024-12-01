@@ -3,7 +3,7 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's PlayerScale v2.0.0
+FOX's PlayerScale v2.0.1
 
 Features:
 Drag and drop, minimal setup required
@@ -718,6 +718,9 @@ function events.entity_init()
   if not host:isHost() then return end
 
   local actionWheel = action_wheel:getCurrentPage() or action_wheel:newPage("Main Page")
+  if not action_wheel:getCurrentPage() then
+    action_wheel:setPage("Main Page")
+  end
 
   -- Create page
   local scalePage = action_wheel:newPage("PlayerScale")

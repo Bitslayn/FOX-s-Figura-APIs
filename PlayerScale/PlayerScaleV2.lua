@@ -3,7 +3,7 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's PlayerScale v2.0.1
+FOX's PlayerScale v2.0.2
 
 Features:
 Drag and drop, minimal setup required
@@ -893,21 +893,21 @@ function events.entity_init()
     },
     -- Metric
     {
-      [0] = { math.worldScale / 2, "1m" },
-      [1] = { math.worldScale / 2 / 10, "10cm" },
-      [2] = { math.worldScale / 2 / 100, "1cm" },
+      [0] = { math.worldScale / 2 * (32 / heightLength), "1m" },
+      [1] = { math.worldScale / 2 / 10 * (32 / heightLength), "10cm" },
+      [2] = { math.worldScale / 2 / 100 * (32 / heightLength), "1cm" },
     },
     -- Imperial
     {
-      [0] = { math.worldScale / 2 * 0.3048, "1ft" },
-      [1] = { math.worldScale / 2 * 0.3048 / 12, "1in" },
-      [2] = { math.worldScale / 2 * 0.3048 / 12 / 16, "¹/₁₆in" },
+      [0] = { math.worldScale / 2 * 0.3048 * (32 / heightLength), "1ft" },
+      [1] = { math.worldScale / 2 * 0.3048 / 12 * (32 / heightLength), "1in" },
+      [2] = { math.worldScale / 2 * 0.3048 / 12 / 16 * (32 / heightLength), "¹/₁₆in" },
     },
     -- Pixels
     {
-      [0] = { math.worldScale / 32 * 10, "10px" },
-      [1] = { math.worldScale / 32, "1px" },
-      [2] = { math.worldScale / 32 / 10, "0.1px" },
+      [0] = { math.worldScale / 32 * 10 * (32 / heightLength), "10px" },
+      [1] = { math.worldScale / 32 * (32 / heightLength), "1px" },
+      [2] = { math.worldScale / 32 / 10 * (32 / heightLength), "0.1px" },
     },
   }
 

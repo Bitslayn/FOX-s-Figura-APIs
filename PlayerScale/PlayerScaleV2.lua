@@ -543,7 +543,6 @@ function PlayerScale.setScale(args, lerp)
     end
     scalePingTick = 0
   else
-    dynamicLerpTimer = 0
     startingHeight = height
     targetHeight = scale
   end
@@ -558,8 +557,12 @@ function PlayerScale.saveScale()
 end
 
 -- Load the scale from the config
-function PlayerScale.loadScale() PlayerScale.setScale({ loadConfig(configFile, "playerScale") or 1 },
-true) end
+function PlayerScale.loadScale()
+  PlayerScale.setScale({ loadConfig(configFile, "playerScale") or 1 },
+    true)
+  PlayerScale.setScale({ loadConfig(configFile, "playerScale") or 1 },
+    true) -- Temporary fix bluh
+end
 
 -- Reping the scale
 function PlayerScale.reping() pings.scale(targetHeight, false) end

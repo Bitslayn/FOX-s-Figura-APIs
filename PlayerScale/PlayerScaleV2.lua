@@ -3,7 +3,7 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's PlayerScale v2.0.2
+FOX's PlayerScale v2.0.3
 
 Features:
 Drag and drop, minimal setup required
@@ -558,7 +558,8 @@ function PlayerScale.saveScale()
 end
 
 -- Load the scale from the config
-function PlayerScale.loadScale() pings.scale(loadConfig(configFile, "playerScale") or 1, true) end
+function PlayerScale.loadScale() PlayerScale.setScale({ loadConfig(configFile, "playerScale") or 1 },
+true) end
 
 -- Reping the scale
 function PlayerScale.reping() pings.scale(targetHeight, false) end

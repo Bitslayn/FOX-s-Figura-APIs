@@ -1,5 +1,5 @@
 {
   "InteractionsAPI": "https://raw.githubusercontent.com/Bitslayn/FOX-s-Figura-APIs/refs/heads/main/InteractionsAPI/InteractionsAPI.lua",
-  "PlayerScale": "https://raw.githubusercontent.com/Bitslayn/FOX-s-Figura-APIs/refs/heads/main/PlayerScale/PlayerScale.lua",
+  "PlayerScale": "https://raw.githubusercontent.com/Bitslayn/FOX-s-Figura-APIs/refs/heads/main/PlayerScale/PlayerScaleV2.lua",
   "FoxCommandLib": "https://raw.githubusercontent.com/Bitslayn/FOX-s-Figura-APIs/refs/heads/main/CommandInterpreter/CommandLib.lua"
 }

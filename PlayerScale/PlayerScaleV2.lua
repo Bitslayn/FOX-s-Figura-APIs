@@ -3,44 +3,15 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's PlayerScale v2.0.3
+FOX's PlayerScale v2.0.4
 
-Features:
-Drag and drop, minimal setup required
-Scale everything! Your defined models, shadow, camera, and nameplate scale with you
-Custom "eyePivot" parenttype to change where your camera pivots on your avatar
-Set your scale dynamically using either the action wheel or through commands (Uses CommandLib for this)
-Supports metric, imperial, and pixel measurements on top of the generic one
+Revised 5 December, 2024
 
 Changelog:
-Rewrote the entire library
-Added custom commands using CommandLib
-Made the entirel library drag and drop
-Added "eyePivot" parenttype allowing for positioning the camera relative to the player model
-Added "heightPivot" parenttype allowing for accurate height measurements
-Added "endHeightPivot" parenttype which pairs with the heightPivot. Useful with taurs or when the height isn't measured vertically.
-Added metric, imperial, and pixel scaling options for setting the scale
-Added fraction to imperial measurement string
-Redesigned the action wheel to be easier to use and scale by other measurement types
-Added nameplate pivoting with the player height
-Added BunnyPat custom player bounding box support
-Added KattDynamicCrosshair support and camera mode
-Added proper repinging
-Added support for negative scaling
-Added "EyePos" avatar variable which exposes where your eye pivot offset is
-Rewrote the camera so that crouching works properly at any scale
-Fixed crouching causing the avatar to clip through the floor
-Fixed displaying inaccurate measurements in the action wheel
-Probably more changes not listed here
-
-Setup:
-Your main model is determined by searching for the "root" of your model. If you don't have a "root" in your model or you
-want to scale multiple models then you can do so with this function.
-
-List the models you want to scale, making sure the first model listed is your main model.
-
-require("PlayerScaleV2")
-scale.setModelParts(models.player, models.armor)
+  Attempted a fix with setting your scale related to pinging
+    (Pings are automatically handled to avoid rate limiting and this caused scaling to "lock up")
+  Changed the eye offset Avatar Store variable from "EyePos" to "eyePos"
+  Made custom parent types no longer case sensitive. Both "Root" and "root" act as the same "parent type"
 
 --]]
 
@@ -57,7 +28,7 @@ Locates pivots, the action wheel, and CommandLib for later functions to use
 ---@nodiscard
 local function searchModel(modelpart, name)
   for _, part in pairs(modelpart:getChildren()) do
-    if name == part:getName() then
+    if name == part:getName():lower() then
       return part
     else
       local result = searchModel(part, name)
@@ -76,15 +47,15 @@ local heightLength, metricConversion
 
 local function recalculatePivots()
   -- Locate eye pivot
-  eyePivot = searchModel(scaledParts[1], "EyePivot")
+  eyePivot = searchModel(scaledParts[1], "eyepivot")
   eyePivot = type(eyePivot) == "ModelPart" and eyePivot:getPivot().y or 28
 
   -- Locate upper height pivot
-  heightPivot = searchModel(scaledParts[1], "HeightPivot")
+  heightPivot = searchModel(scaledParts[1], "heightpivot")
   heightPivot = type(heightPivot) == "ModelPart" and heightPivot:getPivot() or 32
 
   -- Locate lower height pivot
-  endHeightPivot = searchModel(scaledParts[1], "EndHeightPivot")
+  endHeightPivot = searchModel(scaledParts[1], "endheightpivot")
   endHeightPivot = type(endHeightPivot) == "ModelPart" and endHeightPivot:getPivot() or
       heightPivot.x_z
 
@@ -202,7 +173,7 @@ end
 pings.scale(savedHeight, false)
 
 -- Ping configuration from the camera setting, whether or not the eye pivot is used
-local useEyePivot
+local useEyePivot = currentCameraMode or false
 function pings.useEyePivot(bool)
   useEyePivot = bool
 end
@@ -398,7 +369,11 @@ function events.entity_init()
     if useEyePivot then
       pose = player:getEyeHeight()
     end
-    avatar:store("EyePos", vec(0, useEyePivot and (cameraPivot.y - pose) or 0, 0))
+    -- Non-host eye pivot calculation
+    if not host:isHost() then
+      cameraPivot = vec(0, (eyePivot / 16) / math.worldScale * height * vanillaScale, 0)
+      avatar:store("eyePos", vec(0, useEyePivot and (cameraPivot.y - pose) or 0, 0))
+    end
   end
 
   -- Set absolute camera position to player
@@ -430,6 +405,7 @@ function events.entity_init()
       else
         renderer:setEyeOffset()
       end
+      avatar:store("eyePos", renderer:getEyeOffset())
 
       -- Crouching
       local smoothCameraTimer = (cameraLerpTimer + (cameraLerpTimer < cameraLerpEnd and delta or 0))
@@ -533,19 +509,15 @@ function PlayerScale.setScale(args, lerp)
       scale = s
     end
   end
-  if lerp then
-    if scalePingTick == scalePingTickMax then
-      pings.scale(scale or targetHeight, true)
-    else
-      startingHeight = height
-      targetHeight = scale or targetHeight
-      lerpTimer = 0
-    end
-    scalePingTick = 0
+
+  if scalePingTick == scalePingTickMax then
+    pings.scale(scale or targetHeight, true)
   else
     startingHeight = height
-    targetHeight = scale
+    targetHeight = scale or targetHeight
+    lerpTimer = 0
   end
+  scalePingTick = 0
 end
 
 -- Save the scale to the config
@@ -560,15 +532,14 @@ end
 function PlayerScale.loadScale()
   PlayerScale.setScale({ loadConfig(configFile, "playerScale") or 1 },
     true)
-  PlayerScale.setScale({ loadConfig(configFile, "playerScale") or 1 },
-    true) -- Temporary fix bluh
 end
 
 -- Reping the scale
-function PlayerScale.reping() pings.scale(targetHeight, false) end
+function PlayerScale.reping() pings.scale(targetHeight, true) end
 
 -- Reping loop
 function events.tick()
+  if not host:isHost() then return end
   if reping == 0 and lerpTimer == lerpEnd and #client.getTabList().players ~= 1 then
     PlayerScale.reping()
     pings.useEyePivot(useEyePivot)
@@ -580,6 +551,7 @@ end
 local eyePivotTickMax = 5
 local eyePivotTick = eyePivotTickMax
 function events.tick()
+  if not host:isHost() then return end
   if eyePivotTick ~= eyePivotTickMax then
     eyePivotTick = eyePivotTick + 1
     if eyePivotTick == eyePivotTickMax then
@@ -951,3 +923,8 @@ end
 -- #ENDREGION
 
 return scale
+
+--[[
+This is a library! If you are trying to copy and paste this into your script.lua, that's not how you install this!
+Just drag this library into your avatar and use a require! Don't edit this file unless you know what you're doing!
+]]

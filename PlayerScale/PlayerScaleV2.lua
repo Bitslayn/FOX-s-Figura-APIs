@@ -3,15 +3,13 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's PlayerScale v2.0.4
+FOX's PlayerScale v2.0.5
 
-Revised 5 December, 2024
+Revised 24 December, 2024
 
 Changelog:
-  Attempted a fix with setting your scale related to pinging
-    (Pings are automatically handled to avoid rate limiting and this caused scaling to "lock up")
-  Changed the eye offset Avatar Store variable from "EyePos" to "eyePos"
-  Made custom parent types no longer case sensitive. Both "Root" and "root" act as the same "parent type"
+  Fixed the script overrunning default permission instruction limits
+  Added scale.getScale() which returns the avatar's current scale
 
 --]]
 
@@ -377,44 +375,45 @@ function events.entity_init()
   end
 
   -- Set absolute camera position to player
-  function events.world_render(delta)
-    if not host:isHost() then return end
-    if currentCameraMode ~= 1 then
-      pose = player:getEyeHeight()
-      if pose ~= lastPose then
-        cameraLerpTimer = 0
-      end
-      if pose ~= lastPose or height ~= targetHeight then
-        startingCameraPivot = cameraPivot
-        targetCameraPivot = vec(0,
-          (eyePivot / 16) / math.worldScale * math.abs(height) * (pose / 1.62) * vanillaScale, 0)
-        lastPose = pose
-      end
+  if host:isHost() then
+    function events.world_render(delta)
+      if currentCameraMode ~= 1 then
+        pose = player:getEyeHeight()
+        if pose ~= lastPose then
+          cameraLerpTimer = 0
+        end
+        if pose ~= lastPose or height ~= targetHeight then
+          startingCameraPivot = cameraPivot
+          targetCameraPivot = vec(0,
+            (eyePivot / 16) / math.worldScale * math.abs(height) * (pose / 1.62) * vanillaScale, 0)
+          lastPose = pose
+        end
 
-      local renderPivot = player:getPos(delta) + (cameraPivot or 0)
-      local renderRot = player:getRot(delta).xy_
+        local renderPivot = player:getPos(delta) + (cameraPivot or 0)
+        local renderRot = player:getRot(delta).xy_
 
-      local vanillaMaxZoom = CalculateCameraZoom(renderPivot, renderRot, 4)
-      local maxZoom = CalculateCameraZoom(renderPivot, renderRot, 4 * math.abs(height))
-      local trueDistance = maxZoom - vanillaMaxZoom
+        local vanillaMaxZoom = CalculateCameraZoom(renderPivot, renderRot, 4)
+        local maxZoom = CalculateCameraZoom(renderPivot, renderRot, 4 * math.abs(height))
+        local trueDistance = maxZoom - vanillaMaxZoom
 
-      renderer:setCameraPivot(renderPivot)
-      renderer:setCameraPos(0, 0, not renderer:isFirstPerson() and trueDistance or 0)
-      if currentCameraMode == 3 then
-        renderer:setEyeOffset(0, (cameraPivot.y - pose), 0)
+        renderer:setCameraPivot(renderPivot)
+        renderer:setCameraPos(0, 0, not renderer:isFirstPerson() and trueDistance or 0)
+        if currentCameraMode == 3 then
+          renderer:setEyeOffset(0, (cameraPivot.y - pose), 0)
+        else
+          renderer:setEyeOffset()
+        end
+        avatar:store("eyePos", renderer:getEyeOffset())
+
+        -- Crouching
+        local smoothCameraTimer = (cameraLerpTimer + (cameraLerpTimer < cameraLerpEnd and delta or 0))
+        cameraPivot = math.lerp(startingCameraPivot, targetCameraPivot,
+          easeInOutCrouch(smoothCameraTimer / cameraLerpEnd))
       else
+        renderer:setCameraPivot()
+        renderer:setCameraPos()
         renderer:setEyeOffset()
       end
-      avatar:store("eyePos", renderer:getEyeOffset())
-
-      -- Crouching
-      local smoothCameraTimer = (cameraLerpTimer + (cameraLerpTimer < cameraLerpEnd and delta or 0))
-      cameraPivot = math.lerp(startingCameraPivot, targetCameraPivot,
-        easeInOutCrouch(smoothCameraTimer / cameraLerpEnd))
-    else
-      renderer:setCameraPivot()
-      renderer:setCameraPos()
-      renderer:setEyeOffset()
     end
   end
 end
@@ -453,7 +452,7 @@ function events.tick()
   end
 end
 
-function events.world_render(delta)
+function events.render(delta)
   if dynamicLerpTimer < dynamicLerpTimerEnd then
     host:actionbar(tostring(recalculateUnit(false, measurementSystems[preferredSystem])))
     local smoothDynamicTimer = (dynamicLerpTimer + (dynamicLerpTimer < dynamicLerpTimerEnd and delta or 0))
@@ -586,6 +585,10 @@ function PlayerScale.setPreferredMeasurement(system)
   if host:isHost() then
     updatePreferredMeasurementActionTitle()
   end
+end
+
+function PlayerScale.getScale()
+  return targetHeight
 end
 
 -- #ENDREGION

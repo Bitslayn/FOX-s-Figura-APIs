@@ -3,13 +3,12 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's PlayerScale v2.0.5
+FOX's PlayerScale v2.0.6
 
-Revised 24 December, 2024
+Revised 25 December, 2024
 
 Changelog:
-  Fixed the script overrunning default permission instruction limits
-  Added scale.getScale() which returns the avatar's current scale
+  Fixed type issues related to the endHeightPivot
 
 --]]
 
@@ -55,7 +54,7 @@ local function recalculatePivots()
   -- Locate lower height pivot
   endHeightPivot = searchModel(scaledParts[1], "endheightpivot")
   endHeightPivot = type(endHeightPivot) == "ModelPart" and endHeightPivot:getPivot() or
-      heightPivot.x_z
+      type(heightPivot) == "Vector3" and heightPivot.x_z or vec(0, 0, 0)
 
   -- Calculate conversion from height length to metric/imperial
   heightLength = (heightPivot - endHeightPivot):length()

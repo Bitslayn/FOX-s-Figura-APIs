@@ -3,12 +3,12 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's PlayerScale v2.0.6
+FOX's PlayerScale v2.0.7
 
-Revised 25 December, 2024
+Revised 3 March, 2024
 
 Changelog:
-  Fixed type issues related to the endHeightPivot
+  Fixed trackpad scrolling leading to broken state
 
 --]]
 
@@ -761,8 +761,14 @@ function events.entity_init()
     kattDynCross.setEnabled(currentCameraMode == 2)
   end
 
+  local function trunc(n)
+    return n >= 0 and math.floor(n) or math.ceil(n)
+  end
+
   -- Define scroll
   function cameraModeAction.scroll(dir)
+    dir = trunc(dir)
+    if dir == 0 then return end
     -- Scroll through, 1 to 3
     PlayerScale.setCameraMode(((currentCameraMode - 1 - dir) % #cameraModes) + 1)
     -- Play a sound
@@ -790,6 +796,8 @@ function events.entity_init()
 
   -- Define scroll
   function preferredMeasurementAction.scroll(dir)
+    dir = trunc(dir)
+    if dir == 0 then return end
     -- Scroll through, 1 to 4
     PlayerScale.setPreferredMeasurement(((preferredSystem - 1 - dir) % #measurementSystems) + 1)
     -- Play a sound
@@ -831,6 +839,8 @@ function events.entity_init()
 
   -- Define scroll
   function saveLoadAction.scroll(dir)
+    dir = trunc(dir)
+    if dir == 0 then return end
     -- Scroll through, 1 to 4
     saveLoadOption = ((saveLoadOption - 1 - dir) % 3) + 1
     -- Play a sound
@@ -914,6 +924,8 @@ function events.entity_init()
 
   -- Define scroll
   function scaleAction.scroll(dir)
+    dir = trunc(dir)
+    if dir == 0 then return end
     multiplier = (scaleMultipliers[preferredSystem] and scaleMultipliers[preferredSystem][modifiers]) and
         scaleMultipliers[preferredSystem][modifiers][1] or 0
     PlayerScale.setScale({ targetHeight + (multiplier * dir) }, true)

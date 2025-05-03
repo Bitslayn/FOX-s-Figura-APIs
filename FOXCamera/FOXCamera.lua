@@ -10,7 +10,7 @@ Supports 0.1.5 without pre_render with the built-in compatibility mode
 
 It is HIGHLY recommended that you install Sumneko's Lua Language Server and GS Figura Docs
 LLS: https://marketplace.visualstudio.com/items/?itemName=sumneko.lua
-GS Docs: https://discord.com/channels/1129805506354085959/1144132395906388038
+GS Docs: https://github.com/GrandpaScout/FiguraRewriteVSDocs
 
 If you don't know modelpart indexing, you can view how to do that here: https://figura-wiki.pages.dev/tutorials/ModelPart%20Indexing
 

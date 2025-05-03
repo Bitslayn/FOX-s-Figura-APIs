@@ -730,8 +730,8 @@ function events.entity_init()
   -- Define crosshair offset modes
   local cameraModes = {
     { name = "No Offset",               desc = "Don't offset your camera to match your avatar's height",                                      texture = grayscaleSpyglass },
-    { name = "Offset Crosshair",        desc = "Offset the camera, and shift your crosshair to match where you're aiming",                    item = "minecraft:spyglass" },
-    { name = "Offset Camera & Raycast", desc = "Offset both the camera and your raycast\n§4§lCAUTION:§r§c Can trigger server anti-cheats!§r", item = "minecraft:spyglass" },
+    { name = "Offset Crosshair",        desc = "Offset the camera, and shift your crosshair to match where you're aiming",                    item = "minecraft:glass" },
+    { name = "Offset Camera & Raycast", desc = "Offset both the camera and your raycast\n§4§lCAUTION:§r§c Can trigger server anti-cheats!§r", item = "minecraft:glass" },
   }
 
   if not kattDynCross then
@@ -814,7 +814,7 @@ function events.entity_init()
   -- #ENDREGION
   -- #REGION Save/Load action
   local saveLoadAction = scalePage:newAction()
-      :setItem("minecraft:bundle")
+      :setItem("minecraft:white_wool")
 
   local saveLoadOption = 1
 

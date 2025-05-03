@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.0.0 (0.1.5 Compatibility Version)
+FOX's Camera API v1.0.1 (0.1.5 Compatibility Version)
 
 Recommended Figura 0.1.6 or Goofy Plugin
 Supports 0.1.5 without pre_render with the built-in compatibility mode
@@ -87,8 +87,8 @@ local CameraAPI = {}
 ---@field cameraPart ModelPart The modelpart which the camera will follow. You would usually want this to be a pivot inside your body positioned at eye level
 ---@field hiddenPart ModelPart? The modelpart which will become hidden in first person. You would usually want this to be your head group
 ---@field parentType Camera.parentType? `"PLAYER"` What the camera is following. This should be set to "WORLD" if the camera isn't meant to follow the player, or isn't attached to the player model
----@field distance number? `nil` The absolute distance to move the camera out in third person. When set to nil, uses the attribute distance
----@field scale number? `1` The camera's scale, used for camera collisions. Uses the player's scale attribute if not defined
+---@field distance number? `nil` The distance to move the camera out in third person
+---@field scale number? `1` The camera's scale, used for camera collisions and setting the camera matrix scale on 1.20.6 and above
 ---@field unlockPos boolean? `false` Unlocks the camera's horizontal movement to follow the modelpart's position
 ---@field unlockRot boolean? `false` Unlocks the camera's rotation to follow the modelpart's rotation
 ---@field doCollisions boolean? `true` Prevents the camera from passing through solid blocks in third person. This is always disabled for viewers
@@ -101,8 +101,8 @@ local CameraAPI = {}
 ---@param cameraPart ModelPart The modelpart which the camera will follow. You would usually want this to be a pivot inside your body positioned at eye level
 ---@param hiddenPart ModelPart? The modelpart which will become hidden in first person. You would usually want this to be your head group
 ---@param parentType Camera.parentType? `"PLAYER"` What the camera is following. This should be set to "WORLD" if the camera isn't meant to follow the player, or isn't attached to the player model
----@param distance number? `nil` The absolute distance to move the camera out in third person. When set to nil, uses the attribute distance
----@param scale number? `1` The camera's scale, used for camera collisions. Uses the player's scale attribute if not defined
+---@param distance number? `nil` The distance to move the camera out in third person
+---@param scale number? `1` The camera's scale, used for camera collisions and setting the camera matrix scale on 1.20.6 and above
 ---@param unlockPos boolean? `false` Unlocks the camera's horizontal movement to follow the modelpart's position
 ---@param unlockRot boolean? `false` Unlocks the camera's rotation to follow the modelpart's rotation
 ---@param doCollisions boolean? `true` Prevents the camera from passing through solid blocks
@@ -156,6 +156,22 @@ end
 
 --#REGION ˚♡ Helpers ♡˚
 
+--#REGION ˚♡ Eular ♡˚
+
+--[[
+Written by Katt
+https://discord.com/channels/1129805506354085959/1234218592187453452/1304526475503861770
+]]
+
+---@param dirVec Vector3
+---@return Vector3
+local function directionToEulerDegree(dirVec)
+  local yaw = math.atan2(dirVec.x, dirVec.z)
+  local pitch = math.atan2(dirVec.y, dirVec.xz:length())
+  return vec(-math.deg(pitch), -math.deg(yaw), 0)
+end
+
+--#ENDREGION
 --#REGION ˚♡ Boxcast function ♡˚
 
 ---@param pos Vector3
@@ -216,6 +232,7 @@ local distAtt = 4 -- TODO Make this take the distance attribute added in 1.21.6
 
 local doLerp = true
 local cameraPos = vec(0, 1.62, 0)
+local cameraMatDir = vec(0, 0, 0)
 local oldPos, newPos = cameraPos, cameraPos
 function events.tick()
   if not (curr and doLerp) then return end
@@ -233,6 +250,7 @@ function events.entity_init()
     if partMatrix.v11 ~= partMatrix.v11 then return end -- NaN check
     doLerp = curr.parentType == "PLAYER"
     cameraPos = partMatrix:apply()
+    cameraMatDir = partMatrix:applyDir(0, 0, -1)
     if curr.parentType == "WORLD" then return end
 
     local thisMat = curr.renderPart:setPos(math.random()):partToWorldMatrix()
@@ -269,9 +287,10 @@ local isHost = host:isHost()
 local function cameraRender(delta)
   if not curr then return end
 
+  local playerRot = player:getRot(delta).xy_
   local playerPos = player:getPos(delta)
-  local cameraRot = curr.unlockRot and curr.cameraPart:getTrueRot() or nil
   local cameraDir = client:getCameraDir()
+  local cameraRot = curr.unlockRot and directionToEulerDegree(cameraMatDir):sub(playerRot) or nil
   local cameraScale = curr.scale * scAtt
 
   local cPartPos = curr.parentType == "PLAYER" and math.lerp(oldPos, newPos, delta) + playerPos or

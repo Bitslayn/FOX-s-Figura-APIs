@@ -330,7 +330,6 @@ local function cameraRender(delta)
   local cameraScale = curr.scale * scAtt
 
   local lerp = math.lerp(oldPos, newPos, delta)
-  host:actionbar(tostring(lerp))
   local lerpPosH = curr.doLerpH and lerp.x_z or cameraPos.x_z
   local lerpPosV = curr.doLerpV and lerp._y_ or cameraPos._y_
   local lerpPos = (lerpPosH + lerpPosV):add(playerPos)

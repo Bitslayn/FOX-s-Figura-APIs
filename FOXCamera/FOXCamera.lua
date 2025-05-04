@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.2.0 (0.1.5 Compatibility Version)
+FOX's Camera API v1.2.1 (0.1.5 Compatibility Version)
 
 Recommended Figura 0.1.6 or Goofy Plugin
 Supports 0.1.5 without pre_render with the built-in compatibility mode
@@ -292,16 +292,15 @@ function events.render(_, context)
     (lastCameraPos - client:getCameraPos()):length() > 0.5)
 end
 
-local function cameraRender(delta)
-  if not curr then return end
-
+local cameraRot = vec(0, 0, 0)
+function events.post_render(delta) -- Separate so there's no lerping issues
   local partMatrix = curr.cameraPart:partToWorldMatrix()
   if partMatrix.v11 ~= partMatrix.v11 then return end -- NaN check
   doLerp = curr.parentType == "PLAYER"
   cameraPos = partMatrix:apply()
   local offsetPos = partMatrix:apply(curr.offsetLocalPos) - cameraPos
   local offsetDir = partMatrix:applyDir(0, 0, -1)
-  local cameraRot = curr.unlockRot and vec(
+  cameraRot = curr.unlockRot and vec(
     math.atan2(offsetDir.y, offsetDir.xz:length()),
     math.atan2(offsetDir.x, offsetDir.z),
     cameraMatVer and math.atan2(-partMatrix.v21, partMatrix.v22) or 0
@@ -321,12 +320,17 @@ local function cameraRender(delta)
     cameraPos = isCrawling and vec(cameraOffset.x, 0.4 * curr.scale * scAtt, cameraOffset.z) or
         cameraOffset
   end
+end
+
+local function cameraRender(delta)
+  if not curr then return end
 
   local playerPos = player:getPos(delta)
   local cameraDir = client:getCameraDir()
   local cameraScale = curr.scale * scAtt
 
   local lerp = math.lerp(oldPos, newPos, delta)
+  host:actionbar(tostring(lerp))
   local lerpPosH = curr.doLerpH and lerp.x_z or cameraPos.x_z
   local lerpPosV = curr.doLerpV and lerp._y_ or cameraPos._y_
   local lerpPos = (lerpPosH + lerpPosV):add(playerPos)

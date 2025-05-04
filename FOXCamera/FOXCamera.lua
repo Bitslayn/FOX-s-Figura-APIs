@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.0.1 (0.1.5 Compatibility Version)
+FOX's Camera API v1.1.0 (0.1.5 Compatibility Version)
 
 Recommended Figura 0.1.6 or Goofy Plugin
 Supports 0.1.5 without pre_render with the built-in compatibility mode
@@ -16,8 +16,7 @@ If you don't know modelpart indexing, you can view how to do that here: https://
 
 --]]
 
-local logOnCompat = true           -- Set this to false to disable compatibility warnings
-local doCompatibilityChecks = true -- Set this to false to disable checking if the pre_render that exists is compatible. Does not disable checking if it exists
+local logOnCompat = true -- Set this to false to disable compatibility warnings
 
 --#REGION ˚♡ Important ♡˚
 
@@ -56,6 +55,11 @@ local firstPersonContext = { OTHER = true, FIRST_PERSON = true }
 ---  nil, -- (false) unlockRot
 ---  nil, -- (true) doCollisions
 ---  nil, -- (false) doEyeOffset
+---  nil, -- (true) doLerpH
+---  nil, -- (true) doLerpV
+---  nil, -- (vec(0, 0, 0)) offsetGlobalPos
+---  nil, -- (vec(0, 0, 0)) offsetLocalPos
+---  nil, -- (vec(0, 0, 0)) offsetRot
 ---)
 ---
 ---myCamera.hiddenPart = models.the.path.to.your.hidden.part
@@ -88,11 +92,16 @@ local CameraAPI = {}
 ---@field hiddenPart ModelPart? The modelpart which will become hidden in first person. You would usually want this to be your head group
 ---@field parentType Camera.parentType? `"PLAYER"` What the camera is following. This should be set to "WORLD" if the camera isn't meant to follow the player, or isn't attached to the player model
 ---@field distance number? `nil` The distance to move the camera out in third person
----@field scale number? `1` The camera's scale, used for camera collisions and setting the camera matrix scale on 1.20.6 and above
+---@field scale number? `1` The camera's scale, used for camera collisions, and position offsets
 ---@field unlockPos boolean? `false` Unlocks the camera's horizontal movement to follow the modelpart's position
 ---@field unlockRot boolean? `false` Unlocks the camera's rotation to follow the modelpart's rotation
 ---@field doCollisions boolean? `true` Prevents the camera from passing through solid blocks in third person. This is always disabled for viewers
 ---@field doEyeOffset boolean? `false` Moves the player's eye offset with the camera
+---@field doLerpH boolean? `true` If the camera's horizontal position is lerped to the modelpart. Only applied with the PLAYER camera parent type
+---@field doLerpV boolean? `true` If the camera's vertical position is lerped to the modelpart. Only applied with the PLAYER camera parent type
+---@field offsetGlobalPos Vector3? `vec(0, 0, 0)` Offsets the camera relative to the world. Uses world coordinates. Applied even if unlockPos is set to false.
+---@field offsetLocalPos Vector3? `vec(0, 0, 0)` Offsets the camera relative to the modelpart. Uses blockbench coordinates. Applied even if unlockPos is set to false.
+---@field offsetRot Vector3? `vec(0, 0, 0)` Offsets the camera rotation. Applied even if unlockRot is set to false.
 ---@alias Camera.parentType
 ---| "PLAYER"
 ---| "WORLD"
@@ -102,24 +111,35 @@ local CameraAPI = {}
 ---@param hiddenPart ModelPart? The modelpart which will become hidden in first person. You would usually want this to be your head group
 ---@param parentType Camera.parentType? `"PLAYER"` What the camera is following. This should be set to "WORLD" if the camera isn't meant to follow the player, or isn't attached to the player model
 ---@param distance number? `nil` The distance to move the camera out in third person
----@param scale number? `1` The camera's scale, used for camera collisions and setting the camera matrix scale on 1.20.6 and above
+---@param scale number? `1` The camera's scale, used for camera collisions, and position offsets
 ---@param unlockPos boolean? `false` Unlocks the camera's horizontal movement to follow the modelpart's position
 ---@param unlockRot boolean? `false` Unlocks the camera's rotation to follow the modelpart's rotation
 ---@param doCollisions boolean? `true` Prevents the camera from passing through solid blocks
 ---@param doEyeOffset boolean? `false` Moves the player's eye offset with the camera
+---@param doLerpH boolean? `true` If the camera's horizontal position is lerped to the modelpart. Only applied with the PLAYER camera parent type
+---@param doLerpV boolean? `true` If the camera's vertical position is lerped to the modelpart. Only applied with the PLAYER camera parent type
+---@param offsetGlobalPos Vector3? `vec(0, 0, 0)` Offsets the camera relative to the world. Uses world coordinates. Applied even if unlockPos is set to false.
+---@param offsetLocalPos Vector3? `vec(0, 0, 0)` Offsets the camera relative to the modelpart. Uses blockbench coordinates. Applied even if unlockPos is set to false.
+---@param offsetRot Vector3? `vec(0, 0, 0)` Offsets the camera rotation. Applied even if unlockRot is set to false.
 ---@return Camera
 function CameraAPI.newCamera(cameraPart, hiddenPart, parentType, distance, scale, unlockPos,
-                             unlockRot, doCollisions, doEyeOffset)
+                             unlockRot, doCollisions, doEyeOffset, doLerpH, doLerpV, offsetLocalPos,
+                             offsetGlobalPos, offsetRot)
   return {
-    cameraPart   = cameraPart,
-    hiddenPart   = hiddenPart,
-    parentType   = parentType,
-    distance     = distance,
-    scale        = scale,
-    unlockPos    = unlockPos,
-    unlockRot    = unlockRot,
-    doCollisions = doCollisions,
-    doEyeOffset  = doEyeOffset,
+    cameraPart      = cameraPart,
+    hiddenPart      = hiddenPart,
+    parentType      = parentType,
+    distance        = distance,
+    scale           = scale,
+    unlockPos       = unlockPos,
+    unlockRot       = unlockRot,
+    doCollisions    = doCollisions,
+    doEyeOffset     = doEyeOffset,
+    doLerpH         = doLerpH,
+    doLerpV         = doLerpV,
+    offsetGlobalPos = offsetGlobalPos,
+    offsetLocalPos  = offsetLocalPos,
+    offsetRot       = offsetRot,
   }
 end
 
@@ -137,9 +157,14 @@ function CameraAPI.setCamera(camera)
     curr.parentType = curr.parentType or "PLAYER"
     assert(curr.parentType == "PLAYER" or curr.parentType == "WORLD",
       'The parentType must be "PLAYER" or "WORLD"', 2)
-    curr.doCollisions = type(curr.doCollisions) == "nil" and true or curr.doCollisions
+    curr.doCollisions = curr.doCollisions == nil and true or curr.doCollisions
     curr.scale = curr.scale or 1
     assert(type(curr.scale) == "number", "Unexpected type for scale, expected number", 2)
+    curr.doLerpH = curr.doLerpH == nil and true or curr.doLerpH
+    curr.doLerpV = curr.doLerpV == nil and true or curr.doLerpV
+    curr.offsetGlobalPos = curr.offsetGlobalPos or vec(0, 0, 0)
+    curr.offsetLocalPos = curr.offsetLocalPos or vec(0, 0, 0)
+    curr.offsetRot = curr.offsetRot or vec(0, 0, 0)
   else
     renderer:setCameraPivot():setCameraPos():setEyeOffset():setOffsetCameraRot()
   end
@@ -232,7 +257,7 @@ local distAtt = 4 -- TODO Make this take the distance attribute added in 1.21.6
 
 local doLerp = true
 local cameraPos = vec(0, 1.62, 0)
-local cameraMatDir = vec(0, 0, 0)
+local cameraRot = vec(0, 0, 0)
 local oldPos, newPos = cameraPos, cameraPos
 function events.tick()
   if not (curr and doLerp) then return end
@@ -240,7 +265,7 @@ function events.tick()
   newPos = math.lerp(newPos, cameraPos, 0.5)
 end
 
-local lastMat
+local lastCameraPos, lastMat = vec(0, 0, 0), nil
 local cameraOffset = vec(0, 0, 0)
 function events.entity_init()
   function events.post_render(delta, context)
@@ -250,7 +275,10 @@ function events.entity_init()
     if partMatrix.v11 ~= partMatrix.v11 then return end -- NaN check
     doLerp = curr.parentType == "PLAYER"
     cameraPos = partMatrix:apply()
-    cameraMatDir = partMatrix:applyDir(0, 0, -1)
+    local offsetPos = partMatrix:apply(curr.offsetLocalPos) - cameraPos
+    cameraRot = curr.unlockRot and directionToEulerDegree(partMatrix:applyDir(0, 0, -1))
+        :sub(player:getRot(delta).xy_) or vec(0, 0, 0)
+
     if curr.parentType == "WORLD" then return end
 
     local thisMat = curr.renderPart:setPos(math.random()):partToWorldMatrix()
@@ -258,6 +286,7 @@ function events.entity_init()
       lastMat = thisMat
       local xz = curr.unlockPos and 1 or 0
       cameraOffset = (cameraPos - player:getPos(delta)):add(0, crouchOffset, 0):mul(xz, 1, xz)
+          :add(offsetPos)
     end
 
     local isCrawling = player:isGliding() or player:isVisuallySwimming()
@@ -267,7 +296,8 @@ function events.entity_init()
 
   function events.render(_, context)
     if not (curr and curr.hiddenPart) then return end
-    curr.hiddenPart:setVisible(not firstPersonContext[context])
+    curr.hiddenPart:setVisible(not firstPersonContext[context] or
+    (lastCameraPos - client:getCameraPos()):length() > 0.5)
     if curr.parentType == "WORLD" then
       renderer:renderLeftArm(false):renderRightArm(false)
     else
@@ -281,21 +311,24 @@ end
 
 -- Will apply to versions 1.20.6 and above
 local cameraMatVer = client.compareVersions(client:getVersion(), "1.20.6") ~= -1
-local checkPos
 local isHost = host:isHost()
 
 local function cameraRender(delta)
   if not curr then return end
 
-  local playerRot = player:getRot(delta).xy_
   local playerPos = player:getPos(delta)
   local cameraDir = client:getCameraDir()
-  local cameraRot = curr.unlockRot and directionToEulerDegree(cameraMatDir):sub(playerRot) or nil
   local cameraScale = curr.scale * scAtt
 
-  local cPartPos = curr.parentType == "PLAYER" and math.lerp(oldPos, newPos, delta) + playerPos or
-      cameraPos
-  checkPos = cPartPos
+  local lerp = math.lerp(oldPos, newPos, delta)
+  local lerpPosH = curr.doLerpH and lerp.x_z or cameraPos.x_z
+  local lerpPosV = curr.doLerpV and lerp._y_ or cameraPos._y_
+  local lerpPos = (lerpPosH + lerpPosV):add(playerPos)
+
+  local finalCameraPos = (curr.parentType == "PLAYER" and lerpPos or cameraPos:copy())
+  finalCameraPos:add(curr.offsetGlobalPos * curr.scale)
+
+  lastCameraPos = finalCameraPos
 
   local eyeOffset = nil
   if curr.parentType == "PLAYER" and curr.doEyeOffset then
@@ -306,7 +339,7 @@ local function cameraRender(delta)
   local cameraScaleMap = math.clamp(math.map(cameraScale, 0.0625, 0.00390625, 1, 10), 1, 10)
 
   avatar:store("eyePos", eyeOffset)
-  renderer:setCameraPivot(cPartPos):setOffsetCameraRot(cameraRot):setEyeOffset(eyeOffset)
+  renderer:setCameraPivot(finalCameraPos):setOffsetCameraRot(cameraRot):setEyeOffset(eyeOffset)
       :setCameraPos()
 
   if not isHost then return end
@@ -317,37 +350,21 @@ local function cameraRender(delta)
   if renderer:isFirstPerson() then return end
 
   local doCollisions = player:getGamemode() ~= "SPECTATOR" and curr.doCollisions
-  local counterDist = boxcast(cPartPos, cameraDir, distAtt * scAtt, 0.1)
+  local counterDist = boxcast(finalCameraPos, cameraDir, distAtt * scAtt, 0.1)
   local finalDist = (curr.distance or distAtt) * cameraScale
-  finalDist = doCollisions and boxcast(cPartPos, cameraDir, finalDist, 0.1 * cameraScale) or
+  finalDist = doCollisions and boxcast(finalCameraPos, cameraDir, finalDist, 0.1 * cameraScale) or
       finalDist
 
   renderer:setCameraPos(0, 0, finalDist - counterDist)
 end
 
-local function compatCheck()
-  if not (checkPos and renderer:isFirstPerson()) or (checkPos - client:getCameraPos()):length() == 0 then return end
-  events.pre_render:remove(cameraRender)
-  models:newPart("FOXCamera_preRender", "GUI").preRender = cameraRender
-  if logOnCompat then
-    local disableMessage = "§4FOXCamera running in compatibility mode!\n§c%s§r\n"
-    printJson(disableMessage:format(
-      "events.pre_render is incompatible!\n\nThis could be because the event that does exists runs too late in the render thread. Try updating your Figura version or reporting this as an issue."))
-  end
-  events.render:remove(compatCheck)
-end
-
 function events.entity_init()
   if isHost and type(events.pre_render) == "Event" then
     events.pre_render:register(cameraRender)
-    if not (isHost and doCompatibilityChecks) then return end
-    events.render:register(compatCheck)
   else
     models:newPart("FOXCamera_preRender", isHost and "GUI" or nil).preRender = cameraRender
-    if not (isHost and logOnCompat) then return end
-    local disableMessage = "§4FOXCamera running in compatibility mode!\n§c%s§r\n"
-    printJson(disableMessage:format(
-      "events.pre_render could not be found!\n\nThis could be because Figura isn't updated or Goofy plugin isn't installed."))
+    if not logOnCompat then return end
+    host:actionbar("§4FOXCamera running in compatibility mode!")
   end
 end
 

@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.3.0
+FOX's Camera API v1.3.1
 
 Recommended Figura 0.1.6 or Goofy Plugin
 Supports 0.1.5 without pre_render with the built-in compatibility mode
@@ -327,7 +327,7 @@ end
 
 local cameraRot = vec(0, 0, 0)
 function events.post_render(delta, context) -- Separate so there's no lerping issues
-  if not playerContext[context] then return end
+  if not (curr and playerContext[context]) then return end
   local partMatrix = curr.cameraPart:partToWorldMatrix()
   if partMatrix.v11 ~= partMatrix.v11 then return end -- NaN check
   doLerp = curr.parentType == "PLAYER"

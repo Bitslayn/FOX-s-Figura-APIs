@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.3.1
+FOX's Camera API v1.3.2
 
 Recommended Figura 0.1.6 or Goofy Plugin
 Supports 0.1.5 without pre_render with the built-in compatibility mode
@@ -49,12 +49,12 @@ function assert(v, message, level)
   return v or error(message or "Assertion failed!", (level or 1) + 1)
 end
 
----@type Camera
-local curr
+---@type Camera, Camera
+local curr, last
 
 local otherContext = { OTHER = true, PAPERDOLL = true, FIGURA_GUI = true, MINECRAFT_GUI = true }
 local playerContext = { RENDER = true, FIRST_PERSON = true }
-local firstPersonContext = { OTHER = true, FIRST_PERSON = true }
+local firstPersonContext = { OTHER = true, RENDER = true, FIRST_PERSON = true }
 
 --#ENDREGION
 --#REGION ˚♡ API ♡˚
@@ -109,7 +109,8 @@ local firstPersonContext = { OTHER = true, FIRST_PERSON = true }
 ---CameraAPI.setCamera(myCamera)
 ---```
 ---@class CameraAPI
-local CameraAPI = {}
+---@field attributes {scale: number, cameraDistance: number}
+local CameraAPI = { attributes = {} }
 
 ---@class Camera
 ---@field cameraPart ModelPart? The modelpart which the camera will follow. You would usually want this to be a pivot inside your body positioned at eye level
@@ -185,6 +186,8 @@ function CameraAPI.newPresetCamera(preset, cameraPart, hiddenPart)
   return newTbl
 end
 
+local cameraRot = vec(0, 0, 0) -- This is here just so I can reset it when the camera changes
+
 ---Sets the active camera. When no camera is given, this disables FOXCamera, using the vanilla camera instead.
 ---@param camera Camera?
 function CameraAPI.setCamera(camera)
@@ -207,6 +210,8 @@ function CameraAPI.setCamera(camera)
     curr.offsetGlobalPos = curr.offsetGlobalPos or vec(0, 0, 0)
     curr.offsetLocalPos = curr.offsetLocalPos or vec(0, 0, 0)
     curr.offsetRot = curr.offsetRot or vec(0, 0, 0)
+
+    cameraRot = vec(0, 0, 0)
   else
     renderer:cameraPivot():offsetCameraRot():eyeOffset():cameraPos()
   end
@@ -214,9 +219,7 @@ end
 
 ---Gets the camera currently active
 ---@return Camera? camera
-function CameraAPI.getCamera()
-  return curr
-end
+function CameraAPI.getCamera() return curr end
 
 --#ENDREGION
 --#REGION ˚♡ Library ♡˚
@@ -270,12 +273,11 @@ end
 
 local renderedOther
 function events.render(_, context)
-  if otherContext[context] then
-    renderedOther = true
-  end
+  if otherContext[context] then renderedOther = true end
 end
 
-local scAtt = 1
+CameraAPI.attributes.scale = 1
+
 local crouchOffset = 0
 local scPartA = models:newPart("FOXCamera_scaleA"):setPos(0, 16 / math.playerScale, 0)
 local scPartB = models:newPart("FOXCamera_scaleB")
@@ -283,16 +285,16 @@ function events.entity_init()
   function events.post_render(_, context)
     if not (curr and playerContext[context]) then return end
     crouchOffset = not renderedOther and crouchOffsetVer and player:isCrouching() and
-        renderer:isFirstPerson() and 0.125 * scAtt or 0
+        renderer:isFirstPerson() and 0.125 * CameraAPI.attributes.scale or 0
     renderedOther = false
     local scMatA = scPartA:partToWorldMatrix()
     if scMatA.v11 ~= scMatA.v11 then return end -- NaN check
     local scMatB = scPartB:partToWorldMatrix()
-    scAtt = scMatA:sub(scMatB):apply():length()
+    CameraAPI.attributes.scale = scMatA:sub(scMatB):apply():length()
   end
 end
 
-local distAtt = 4 -- TODO Make this take the distance attribute added in 1.21.6
+CameraAPI.attributes.cameraDistance = 4 -- TODO Make this take the distance attribute added in 1.21.6
 
 --#ENDREGION
 
@@ -326,7 +328,6 @@ function events.render(_, context)
     (lastCameraPos - client:getCameraPos()):length() > 0.5)
 end
 
-local cameraRot = vec(0, 0, 0)
 function events.post_render(delta, context) -- Separate so there's no lerping issues
   if not (curr and playerContext[context]) then return end
   local partMatrix = curr.cameraPart:partToWorldMatrix()
@@ -352,13 +353,15 @@ function events.post_render(delta, context) -- Separate so there's no lerping is
     end
 
     local isCrawling = player:isGliding() or player:isVisuallySwimming()
-    cameraPos = isCrawling and vec(cameraOffset.x, 0.4 * curr.scale * scAtt, cameraOffset.z) or
-        cameraOffset
+    cameraPos = isCrawling and cameraOffset.x_z
+        :add(0, 0.4 * curr.scale * CameraAPI.attributes.scale, 0) or cameraOffset
   end
 end
 
 local function cameraRender(delta)
   if not curr then return end
+
+  local scAtt = CameraAPI.attributes.scale
 
   local playerPos = player:getPos(delta)
   local cameraDir = client:getCameraDir()
@@ -388,9 +391,10 @@ local function cameraRender(delta)
   local cameraScaleMap = math.clamp(math.map(cameraScale, 0.0625, 0.00390625, 1, 10), 1, 10)
 
   avatar:store("eyePos", eyeOffset)
-  if curr.unlockRot then
+  if curr.unlockRot and last == curr then
     cameraRot:sub(player:getRot(delta).xy_)
   end
+  last = curr
   renderer:cameraPivot(finalCameraPos):offsetCameraRot(cameraRot)
       :eyeOffset(eyeOffset):cameraPos()
 
@@ -402,6 +406,8 @@ local function cameraRender(delta)
   end
 
   if renderer:isFirstPerson() then return end
+
+  local distAtt = CameraAPI.attributes.cameraDistance
 
   local doCollisions = player:getGamemode() ~= "SPECTATOR" and curr.doCollisions
   local counterDist = boxcast(finalCameraPos, cameraDir, distAtt * scAtt, 0.1)

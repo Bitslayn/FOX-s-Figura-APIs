@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.2.3
+FOX's Camera API v1.3.0
 
 Recommended Figura 0.1.6 or Goofy Plugin
 Supports 0.1.5 without pre_render with the built-in compatibility mode
@@ -17,8 +17,25 @@ FOXCamera Wiki: https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXCamera
 
 --]]
 
+--#REGION ˚♡ Library configs ♡˚
+
+-- Anything in here can be changed or adjusted. Just remember to keep things neat and tidy :3
+
 local logOnCompat = true -- Set this to false to disable compatibility warnings
 
+---@alias Camera.presets
+---| "CASUAL" A preset optimized for casual play. Has a near-vanilla feel with crouching and crawling. Recommended to use this with a modelpart placed inside the body at eye level.
+---| "PRO" A preset optimized for a gimbal locked camera. Recommended to use this with a modelpart placed inside the head.
+---| "WORLD" A preset optimized for animations or drones. Recommended to use with world modelparts.
+
+---@type table<Camera.presets, Camera>
+local cameraPresets = {
+  CASUAL = { doEyeOffset = true },
+  PRO = { doEyeOffset = true, doEyeRotation = true, unlockPos = true, unlockRot = true },
+  WORLD = { parentType = "WORLD", unlockRot = true },
+}
+
+--#ENDREGION
 --#REGION ˚♡ Important ♡˚
 
 -- Will apply to versions 1.20.6 and above
@@ -95,7 +112,7 @@ local firstPersonContext = { OTHER = true, FIRST_PERSON = true }
 local CameraAPI = {}
 
 ---@class Camera
----@field cameraPart ModelPart The modelpart which the camera will follow. You would usually want this to be a pivot inside your body positioned at eye level
+---@field cameraPart ModelPart? The modelpart which the camera will follow. You would usually want this to be a pivot inside your body positioned at eye level
 ---@field hiddenPart ModelPart? The modelpart which will become hidden in first person. You would usually want this to be your head group
 ---@field parentType Camera.parentType? `"PLAYER"` What the camera is following. This should be set to "WORLD" if the camera isn't meant to follow the player, or isn't attached to the player model
 ---@field distance number? `nil` The distance to move the camera out in third person
@@ -114,7 +131,7 @@ local CameraAPI = {}
 ---| "PLAYER"
 ---| "WORLD"
 
----Generates a camera table to use in `<CameraAPI>.setCamera()`
+---Generates a new camera with the given configurations
 ---@param cameraPart ModelPart The modelpart which the camera will follow. You would usually want this to be a pivot inside your body positioned at eye level
 ---@param hiddenPart ModelPart? The modelpart which will become hidden in first person. You would usually want this to be your head group
 ---@param parentType Camera.parentType? `"PLAYER"` What the camera is following. This should be set to "WORLD" if the camera isn't meant to follow the player, or isn't attached to the player model
@@ -153,7 +170,22 @@ function CameraAPI.newCamera(cameraPart, hiddenPart, parentType, distance, scale
   }
 end
 
----Sets the active camera
+---Generates a new camera from a preset
+---@param cameraPart ModelPart The modelpart which the camera will follow. You would usually want this to be a pivot inside your body positioned at eye level
+---@param hiddenPart ModelPart? The modelpart which will become hidden in first person. You would usually want this to be your head group
+---@param preset Camera.presets The preset to apply to this camera
+function CameraAPI.newPresetCamera(cameraPart, hiddenPart, preset)
+  local pTbl = cameraPresets[preset]
+  assert(pTbl, "Unknown preset to apply to this camera!", 2)
+  local newTbl = {
+    cameraPart = cameraPart,
+    hiddenPart = hiddenPart,
+  }
+  for k, v in pairs(pTbl) do newTbl --[[@as Camera]][k] = v end
+  return newTbl
+end
+
+---Sets the active camera. When no camera is given, this disables FOXCamera, using the vanilla camera instead.
 ---@param camera Camera?
 function CameraAPI.setCamera(camera)
   if curr and curr.hiddenPart then
@@ -380,7 +412,7 @@ local function cameraRender(delta)
 end
 
 function events.entity_init()
-  if isHost and type(events.pre_render) == "Event" then
+  if isHost and type(events.pre_render --[[@as Event]]) == "Event" then
     events.pre_render:register(cameraRender)
   else
     models:newPart("FOXCamera_preRender", isHost and "GUI" or nil).preRender = cameraRender

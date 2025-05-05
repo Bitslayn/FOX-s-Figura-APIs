@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.2.2
+FOX's Camera API v1.2.3
 
 Recommended Figura 0.1.6 or Goofy Plugin
 Supports 0.1.5 without pre_render with the built-in compatibility mode
@@ -355,7 +355,10 @@ local function cameraRender(delta)
   local cameraScaleMap = math.clamp(math.map(cameraScale, 0.0625, 0.00390625, 1, 10), 1, 10)
 
   avatar:store("eyePos", eyeOffset)
-  renderer:cameraPivot(finalCameraPos):offsetCameraRot(cameraRot - player:getRot(delta).xy_)
+  if curr.doEyeRotation then
+    cameraRot:sub(player:getRot(delta).xy_)
+  end
+  renderer:cameraPivot(finalCameraPos):offsetCameraRot(cameraRot)
       :eyeOffset(eyeOffset):cameraPos()
 
   if not isHost then return end

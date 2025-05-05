@@ -309,6 +309,7 @@ function events.tick()
 end
 
 function events.tick()
+  if not curr then return end
   if curr.parentType == "WORLD" then
     renderer:renderLeftArm(false):renderRightArm(false)
   else

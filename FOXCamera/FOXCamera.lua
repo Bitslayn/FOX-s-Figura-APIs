@@ -171,10 +171,10 @@ function CameraAPI.newCamera(cameraPart, hiddenPart, parentType, distance, scale
 end
 
 ---Generates a new camera from a preset
+---@param preset Camera.presets The preset to apply to this camera
 ---@param cameraPart ModelPart The modelpart which the camera will follow. You would usually want this to be a pivot inside your body positioned at eye level
 ---@param hiddenPart ModelPart? The modelpart which will become hidden in first person. You would usually want this to be your head group
----@param preset Camera.presets The preset to apply to this camera
-function CameraAPI.newPresetCamera(cameraPart, hiddenPart, preset)
+function CameraAPI.newPresetCamera(preset, cameraPart, hiddenPart)
   local pTbl = cameraPresets[preset]
   assert(pTbl, "Unknown preset to apply to this camera!", 2)
   local newTbl = {

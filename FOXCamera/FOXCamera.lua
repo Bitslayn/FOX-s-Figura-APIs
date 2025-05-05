@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.3.2
+FOX's Camera API v1.3.3
 
 Recommended Figura 0.1.6 or Goofy Plugin
 Supports 0.1.5 without pre_render with the built-in compatibility mode
@@ -276,7 +276,7 @@ local lastCameraPos, cameraOffset, lastMat = vec(0, 0, 0), vec(0, 0, 0), nil
 function events.render(_, context)
   if not (curr and curr.hiddenPart) then return end
   curr.hiddenPart:setVisible(not firstPersonContext[context] or
-    (lastCameraPos - client:getCameraPos()):length() > 0.5)
+    (lastCameraPos - client:getCameraPos()):length() > 0.5 * curr.scale * CameraAPI.attributes.scale)
 end
 
 function events.post_render(delta, context) -- Separate so there's no lerping issues

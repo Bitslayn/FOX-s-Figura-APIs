@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.2.1 (0.1.5 Compatibility Version)
+FOX's Camera API v1.2.2
 
 Recommended Figura 0.1.6 or Goofy Plugin
 Supports 0.1.5 without pre_render with the built-in compatibility mode
@@ -12,7 +12,8 @@ It is HIGHLY recommended that you install Sumneko's Lua Language Server and GS F
 LLS: https://marketplace.visualstudio.com/items/?itemName=sumneko.lua
 GS Docs: https://github.com/GrandpaScout/FiguraRewriteVSDocs
 
-If you don't know modelpart indexing, you can view how to do that here: https://figura-wiki.pages.dev/tutorials/ModelPart%20Indexing
+FOXCamera Download: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/FOXCamera/FOXCamera.lua
+FOXCamera Wiki: https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXCamera
 
 --]]
 
@@ -293,7 +294,8 @@ function events.render(_, context)
 end
 
 local cameraRot = vec(0, 0, 0)
-function events.post_render(delta) -- Separate so there's no lerping issues
+function events.post_render(delta, context) -- Separate so there's no lerping issues
+  if not playerContext[context] then return end
   local partMatrix = curr.cameraPart:partToWorldMatrix()
   if partMatrix.v11 ~= partMatrix.v11 then return end -- NaN check
   doLerp = curr.parentType == "PLAYER"
@@ -304,7 +306,7 @@ function events.post_render(delta) -- Separate so there's no lerping issues
     math.atan2(offsetDir.y, offsetDir.xz:length()),
     math.atan2(offsetDir.x, offsetDir.z),
     cameraMatVer and math.atan2(-partMatrix.v21, partMatrix.v22) or 0
-  ):toDeg():mul(-1, -1, 1):sub(player:getRot(delta).xy_) or vec(0, 0, 0)
+  ):toDeg():mul(-1, -1, 1) or vec(0, 0, 0)
   cameraRot:sub(curr.offsetRot)
 
   if curr.parentType == "PLAYER" then
@@ -344,7 +346,7 @@ local function cameraRender(delta)
     local eyeHeight = vec(0, player:getEyeHeight(), 0)
     eyeOffset = cameraPos - eyeHeight
     -- Experimental eye offset rotation
-    if curr.doEyeRotation then
+    if curr.doEyeRotation and isHost then
       local targeted = targetcast(cameraPos + playerPos, cameraDir)
       eyeOffset = targeted and targeted - playerPos - eyeHeight - player:getLookDir() or eyeOffset
     end
@@ -353,12 +355,15 @@ local function cameraRender(delta)
   local cameraScaleMap = math.clamp(math.map(cameraScale, 0.0625, 0.00390625, 1, 10), 1, 10)
 
   avatar:store("eyePos", eyeOffset)
-  renderer:cameraPivot(finalCameraPos):offsetCameraRot(cameraRot):eyeOffset(eyeOffset):cameraPos()
+  renderer:cameraPivot(finalCameraPos):offsetCameraRot(cameraRot - player:getRot(delta).xy_)
+      :eyeOffset(eyeOffset):cameraPos()
 
   if not isHost then return end
 
-  local cameraMat = matrices.mat3():scale(cameraScaleMap):rotate(0, 0, cameraRot.z):augmented()
-  renderer:setCameraMatrix(cameraMatVer and cameraMat or nil)
+  if cameraMatVer then
+    local cameraMat = matrices.mat3():scale(cameraScaleMap):rotate(0, 0, cameraRot.z):augmented()
+    renderer:setCameraMatrix(cameraMat)
+  end
 
   if renderer:isFirstPerson() then return end
 

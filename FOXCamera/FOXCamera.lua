@@ -355,7 +355,7 @@ local function cameraRender(delta)
   local cameraScaleMap = math.clamp(math.map(cameraScale, 0.0625, 0.00390625, 1, 10), 1, 10)
 
   avatar:store("eyePos", eyeOffset)
-  if curr.doEyeRotation then
+  if curr.unlockRot then
     cameraRot:sub(player:getRot(delta).xy_)
   end
   renderer:cameraPivot(finalCameraPos):offsetCameraRot(cameraRot)

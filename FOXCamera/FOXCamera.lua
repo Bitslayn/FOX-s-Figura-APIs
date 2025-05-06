@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.4.1
+FOX's Camera API v1.4.2
 
 Recommended Figura 0.1.6 or Goofy Plugin
 Supports 0.1.5 without pre_render with the built-in compatibility mode
@@ -478,8 +478,9 @@ local function cameraRender(delta)
 
   -- Offset camera rotation by player rotation if the camera hasn't changed
 
+  local finalCameraRot
   if curr.unlockRot and last == curr then
-    cameraRot:sub(player:getRot(delta).xy_)
+    finalCameraRot = cameraRot - player:getRot(delta).xy_
   end
   last = curr
 
@@ -503,7 +504,7 @@ local function cameraRender(delta)
   local offsetCameraPos = curr.offsetSpace == "CAMERA" and curr.offsetPos:copy() or vec(0, 0, 0)
 
   renderer:cameraPivot(finalCameraPos)
-      :offsetCameraRot(cameraRot)
+      :offsetCameraRot(finalCameraRot)
       :cameraPos(offsetCameraPos)
 
   lastCameraPos = finalCameraPos
@@ -512,7 +513,7 @@ local function cameraRender(delta)
 
   local cameraScaleMap = math.clamp(math.map(cameraScale, 0.0625, 0.00390625, 1, 10), 1, 10)
   if cameraMatVer then
-    local cameraMat = matrices.mat3():scale(cameraScaleMap):rotate(0, 0, cameraRot.z):augmented()
+    local cameraMat = matrices.mat3():scale(cameraScaleMap):rotate(0, 0, finalCameraRot.z):augmented()
     renderer:setCameraMatrix(cameraMat)
   end
 

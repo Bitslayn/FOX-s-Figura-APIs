@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.4.2
+FOX's Camera API v1.4.3
 
 Recommended Figura 0.1.6 or Goofy Plugin
 Supports 0.1.5 without pre_render with the built-in compatibility mode
@@ -478,7 +478,7 @@ local function cameraRender(delta)
 
   -- Offset camera rotation by player rotation if the camera hasn't changed
 
-  local finalCameraRot
+  local finalCameraRot = vec(0, 0, 0)
   if curr.unlockRot and last == curr then
     finalCameraRot = cameraRot - player:getRot(delta).xy_
   end

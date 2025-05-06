@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.3.3
+FOX's Camera API v1.3.4
 
 Recommended Figura 0.1.6 or Goofy Plugin
 Supports 0.1.5 without pre_render with the built-in compatibility mode
@@ -126,6 +126,7 @@ end
 ---@param preset Camera.presets The preset to apply to this camera
 ---@param cameraPart ModelPart The modelpart which the camera will follow. You would usually want this to be a pivot inside your body positioned at eye level
 ---@param hiddenPart ModelPart? The modelpart which will become hidden in first person. You would usually want this to be your head group
+---@return Camera
 function CameraAPI.newPresetCamera(preset, cameraPart, hiddenPart)
   local pTbl = cameraPresets[preset]
   assert(pTbl, "Unknown preset to apply to this camera!", 2)
@@ -139,7 +140,7 @@ end
 
 local cameraRot = vec(0, 0, 0) -- This is here just so I can reset it when the camera changes
 
----Sets the active camera. When no camera is given, this disables FOXCamera, using the vanilla camera instead.
+---Sets the active camera. When no camera is given, or the argument is nil, this disables FOXCamera, using the vanilla camera instead.
 ---@param camera Camera?
 function CameraAPI.setCamera(camera)
   if curr and curr.hiddenPart then
@@ -168,7 +169,7 @@ function CameraAPI.setCamera(camera)
   end
 end
 
----Gets the camera currently active
+---Gets the camera currently active. Returns nil if none is active
 ---@return Camera? camera
 function CameraAPI.getCamera() return curr end
 
@@ -317,6 +318,11 @@ local function cameraRender(delta)
   local playerPos = player:getPos(delta)
   local cameraDir = client:getCameraDir()
   local cameraScale = curr.scale * scAtt
+
+  if curr.parentType == "WORLD" then
+    cameraPos = curr.cameraPart:getTruePos():add(curr.cameraPart:getTruePivot()):div(16, 16, 16)
+    cameraRot = -curr.cameraPart:getTrueRot():mul(-1, 1, -1)
+  end
 
   local lerp = math.lerp(oldPos, newPos, delta)
   local lerpPosH = curr.doLerpH and lerp.x_z or cameraPos.x_z

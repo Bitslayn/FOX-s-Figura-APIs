@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.4.0
+FOX's Camera API v1.4.1
 
 Recommended Figura 0.1.6 or Goofy Plugin
 Supports 0.1.5 without pre_render with the built-in compatibility mode
@@ -295,31 +295,38 @@ end
 --#ENDREGION
 --#REGION ˚♡ Attributes (and crouch offset fix) ♡˚
 
--- Check if the crouch offset patch should be applied.
+-- Crouch offset patch
 
 local renderedOther
-function events.render(_, context)
-  if otherContext[context] then renderedOther = true end
-end
-
-CameraAPI.attributes.scale = 1
-
 local crouchOffset = 0
-local scPartA = models:newPart("FOXCamera_scaleA"):setPos(0, 16 / math.playerScale, 0)
-local scPartB = models:newPart("FOXCamera_scaleB")
-function events.entity_init()
+if isHost then
+  function events.render(_, context)
+    if otherContext[context] then renderedOther = true end
+  end
+
   function events.post_render(_, context)
     if not (curr and playerContext[context]) then return end
     local shouldApply = not renderedOther and crouchOffsetVer and player:isCrouching() and
         renderer:isFirstPerson()
     crouchOffset = shouldApply and 0.125 * CameraAPI.attributes.scale or 0
     renderedOther = false
-    local scMatA = scPartA:partToWorldMatrix()
-    if scMatA.v11 ~= scMatA.v11 then return end -- NaN check
-    local scMatB = scPartB:partToWorldMatrix()
-    CameraAPI.attributes.scale = scMatA:sub(scMatB):apply():length()
   end
 end
+
+-- Scale attribute
+
+CameraAPI.attributes.scale = 1
+
+local scPartA = models:newPart("FOXCamera_scaleA"):setPos(0, 16 / math.playerScale, 0)
+local scPartB = models:newPart("FOXCamera_scaleB")
+function events.tick()
+  local scMatA = scPartA:partToWorldMatrix()
+  if scMatA.v11 ~= scMatA.v11 then return end -- NaN check
+  local scMatB = scPartB:partToWorldMatrix()
+  CameraAPI.attributes.scale = scMatA:sub(scMatB):apply():length()
+end
+
+-- Distance attribute
 
 CameraAPI.attributes.cameraDistance = 4 -- TODO Make this take the distance attribute added in 1.21.6
 
@@ -328,27 +335,9 @@ CameraAPI.attributes.cameraDistance = 4 -- TODO Make this take the distance attr
 --#ENDREGION
 --#REGION ˚♡ Camera ♡˚
 
--- Lerps the camera's position for PLAYER cameras
-
 local doLerp = true -- Set to if the camera is a PLAYER camera or not
 local cameraPos = vec(0, 1.62, 0)
 local oldPos, newPos = cameraPos, cameraPos
-function events.tick()
-  if not (curr and doLerp and (curr.doLerpH or curr.doLerpV)) then return end
-  oldPos = newPos
-  newPos = math.lerp(newPos, cameraPos, 0.5)
-end
-
--- Set the visibility of arms
-
-function events.tick()
-  if not curr then return end
-  local hideArms = nil
-  if curr.parentType == "WORLD" then
-    hideArms = false
-  end
-  renderer:renderLeftArm(hideArms):renderRightArm(hideArms)
-end
 
 -- Used for checking if the camera is inside the hiddenPart, and if it should be visible when using freecam or setting the camera distance to or near 0
 local lastCameraPos = vec(0, 0, 0)
@@ -357,12 +346,34 @@ local cameraOffset = vec(0, 0, 0)
 -- The matrix of a modelpart created in the camera, and set to have a random x position. Used to verify if partToWorldMatrix of the camera part has actually updated this frame
 local lastMat
 
--- Sets the visibility of the hidden part, taking into account the position of the camera and the render context
+if isHost then
+  -- Lerps the camera's position for PLAYER cameras
 
-function events.render(_, context)
-  if not (curr and curr.hiddenPart) then return end
-  curr.hiddenPart:setVisible(not firstPersonContext[context] or
-    (lastCameraPos - client:getCameraPos()):length() > 0.5 * curr.scale * CameraAPI.attributes.scale)
+  function events.tick()
+    if not (curr and doLerp and (curr.doLerpH or curr.doLerpV)) then return end
+    oldPos = newPos
+    newPos = math.lerp(newPos, cameraPos, 0.5)
+  end
+
+  -- Set the visibility of arms
+
+  function events.tick()
+    if not curr then return end
+    local hideArms = nil
+    if curr.parentType == "WORLD" then
+      hideArms = false
+    end
+    renderer:renderLeftArm(hideArms):renderRightArm(hideArms)
+  end
+
+  -- Sets the visibility of the hidden part, taking into account the position of the camera and the render context
+
+  function events.render(_, context)
+    if not (curr and curr.hiddenPart) then return end
+    curr.hiddenPart:setVisible(not firstPersonContext[context] or
+      (lastCameraPos - client:getCameraPos()):length()
+      > 0.5 * curr.scale * CameraAPI.attributes.scale)
+  end
 end
 
 -- Gets the partToWorldMatrix of the camera part for the PLAYER camera parent type. Separate from pre_render so there are no lerping
@@ -441,7 +452,8 @@ local function cameraRender(delta)
     if isHost and curr.doEyeRotation then
       local targeted = targetcast(cameraPos + playerPos, cameraDir)
       if targeted then
-        eyeOffset = targeted - playerPos - eyeHeight - (player:getLookDir() * player:getVelocity():length() * 1.1)
+        eyeOffset = targeted - playerPos - eyeHeight -
+            (player:getLookDir() * player:getVelocity():length() * 1.1)
       end
     end
   end

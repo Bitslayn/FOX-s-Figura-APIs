@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.4.3
+FOX's Camera API v1.4.4
 
 Recommended Figura 0.1.6 or Goofy Plugin
 Supports 0.1.5 without pre_render with the built-in compatibility mode
@@ -46,8 +46,6 @@ local isHost = host:isHost()
 
 -- Will apply to versions 1.20.6 and above, used to disable applying the camera matrix for scaling and rolling camera on versions that don't support it
 local cameraMatVer = client.compareVersions(client:getVersion(), "1.20.6") ~= -1
--- Will apply to versions 1.21.2 and before, used to fix a bug in earlier versions of Minecraft where the player model would be higher than it should while crouching, fixing the camera not being positioned at the right spot
-local crouchOffsetVer = client.compareVersions(client:getVersion(), "1.21.2") ~= 1
 
 -- Protect your metatables
 figuraMetatables.Vector3.__metatable = false
@@ -62,13 +60,13 @@ function assert(v, message, level)
   return v or error(message or "Assertion failed!", (level or 1) + 1)
 end
 
----@type Camera, Camera
-local curr, last
+---@class Camera
+local curr
+---@class Camera
+local last
 
 -- Render context categories for preventing render events from running when they should not
 
--- Used for checking if the crouch offset patch should be applied. If any of these render contexts happen, the patch is applied post_render.
-local otherContext = { OTHER = true, PAPERDOLL = true, FIGURA_GUI = true, MINECRAFT_GUI = true }
 -- Used for filtering out pulling the modelpart matrix for contexts that the player isn't rendering in-world
 local playerContext = { RENDER = true, FIRST_PERSON = true }
 -- Used for setting the hiddenPart visibility. ANY OTHER render context will always show the modelpart. (Other is here for FPM support. It cannot distinguish between FPM and shaders)
@@ -82,6 +80,7 @@ local firstPersonContext = { OTHER = true, RENDER = true, FIRST_PERSON = true }
 local CameraAPI = { attributes = {} }
 
 ---@class Camera
+---@field private renderPart ModelPart? A modelpart created when the camera is set. Used for checking if partToWorldMatrix actually returns a matrix
 ---@field cameraPart ModelPart? The modelpart which the camera will follow. You would usually want this to be a pivot inside your body positioned at eye level
 ---@field hiddenPart ModelPart? The modelpart which will become hidden in first person. You would usually want this to be your head group
 ---@field parentType Camera.parentType? `"PLAYER"` What the camera is following, whether it be a player part or a world part. This should reflect the modelpart parent type
@@ -159,10 +158,7 @@ function CameraAPI.newPresetCamera(preset, cameraPart, hiddenPart)
 
   -- Create a camera table with the given arguments
 
-  local newTbl = {
-    cameraPart = cameraPart,
-    hiddenPart = hiddenPart,
-  }
+  local newTbl = { cameraPart = cameraPart, hiddenPart = hiddenPart }
 
   -- Add the preset's configs to the newly created camera table, and return
 
@@ -189,9 +185,20 @@ function CameraAPI.setCamera(camera)
 
   curr = camera
   if camera then
-    -- Apply defaults
+    -- Edge case type check
+
+    assert(
+      type(camera.cameraPart) == "ModelPart",
+      "Unexpected type for cameraPart, expected ModelPart",
+      2
+    )
+
+    -- Create render part which is meant to check if partToWorldMatrix actually returns a matrix
 
     curr.renderPart = curr.cameraPart.renderValidator or curr.cameraPart:newPart("renderValidator")
+
+    -- Apply defaults
+
     curr.parentType = curr.parentType or "PLAYER"
     curr.doCollisions = curr.doCollisions == nil and true or curr.doCollisions
     curr.scale = curr.scale or 1
@@ -203,11 +210,6 @@ function CameraAPI.setCamera(camera)
 
     -- Type checks
 
-    assert(
-      type(camera.cameraPart) == "ModelPart",
-      "Unexpected type for cameraPart, expected ModelPart",
-      2
-    )
     assert(
       curr.parentType == "PLAYER" or curr.parentType == "WORLD",
       'The parentType must be "PLAYER" or "WORLD"',
@@ -293,25 +295,7 @@ local function targetcast(pos, direction)
 end
 
 --#ENDREGION
---#REGION ˚♡ Attributes (and crouch offset fix) ♡˚
-
--- Crouch offset patch
-
-local renderedOther
-local crouchOffset = 0
-if isHost then
-  function events.render(_, context)
-    if otherContext[context] then renderedOther = true end
-  end
-
-  function events.post_render(_, context)
-    if not (curr and playerContext[context]) then return end
-    local shouldApply = not renderedOther and crouchOffsetVer and player:isCrouching() and
-        renderer:isFirstPerson()
-    crouchOffset = shouldApply and 0.125 * CameraAPI.attributes.scale or 0
-    renderedOther = false
-  end
-end
+--#REGION ˚♡ Attributes ♡˚
 
 -- Scale attribute
 
@@ -370,9 +354,9 @@ if isHost then
 
   function events.render(_, context)
     if not (curr and curr.hiddenPart) then return end
-    curr.hiddenPart:setVisible(not firstPersonContext[context] or
-      (lastCameraPos - client:getCameraPos()):length()
-      > 0.5 * curr.scale * CameraAPI.attributes.scale)
+    local hiddenRadius = 0.5 * curr.scale * CameraAPI.attributes.scale
+    local cameraOffDistance = (lastCameraPos - client:getCameraPos()):length()
+    curr.hiddenPart:setVisible(not firstPersonContext[context] or cameraOffDistance > hiddenRadius)
   end
 end
 
@@ -391,16 +375,14 @@ function events.post_render(delta, context)
 
   -- Get the position from the matrix
 
-  local offsetPos = partMatrix
-      :apply(curr.offsetSpace == "LOCAL" and curr.offsetPos or nil)
-      :sub(cameraPos)
+  local localOffset = curr.offsetSpace == "LOCAL" and curr.offsetPos or nil
+  local offsetPos = partMatrix:apply(localOffset):sub(cameraPos)
 
   local thisMat = curr.renderPart:setPos(math.random()):partToWorldMatrix()
   if thisMat ~= lastMat then
     lastMat = thisMat
     local xz = curr.unlockPos and 1 or 0
     cameraOffset = (cameraPos - player:getPos(delta))
-        :add(0, crouchOffset, 0)
         :mul(xz, 1, xz)
         :add(offsetPos)
   end
@@ -452,8 +434,8 @@ local function cameraRender(delta)
     if isHost and curr.doEyeRotation then
       local targeted = targetcast(cameraPos + playerPos, cameraDir)
       if targeted then
-        eyeOffset = targeted - playerPos - eyeHeight -
-            (player:getLookDir() * player:getVelocity():length() * 1.1)
+        local lookOffset = player:getLookDir() * (player:getVelocity():length() * 1.1)
+        eyeOffset = targeted:sub(playerPos):sub(eyeHeight):sub(lookOffset)
       end
     end
   end
@@ -472,13 +454,13 @@ local function cameraRender(delta)
   if curr.parentType == "WORLD" then
     cameraPos = curr.cameraPart:getTruePos():add(curr.cameraPart:getTruePivot()):div(16, 16, 16)
     if curr.unlockRot then
-      cameraRot = -curr.cameraPart:getTrueRot():mul(-1, 1, -1)
+      cameraRot = curr.cameraPart:getTrueRot():mul(1, -1, 1)
     end
   end
 
   -- Offset camera rotation by player rotation if the camera hasn't changed
 
-  local finalCameraRot = vec(0, 0, 0)
+  local finalCameraRot = cameraRot or vec(0, 0, 0)
   if curr.unlockRot and last == curr then
     finalCameraRot = cameraRot - player:getRot(delta).xy_
   end
@@ -493,7 +475,7 @@ local function cameraRender(delta)
       local lerpPosH = curr.doLerpH and lerp.x_z or cameraPos.x_z
       local lerpPosV = curr.doLerpV and lerp._y_ or cameraPos._y_
 
-      finalCameraPos = (lerpPosH + lerpPosV):add(playerPos)
+      finalCameraPos = lerpPosH:add(lerpPosV):add(playerPos)
     else
       finalCameraPos = cameraPos:copy():add(playerPos)
     end
@@ -511,9 +493,12 @@ local function cameraRender(delta)
 
   -- Set the camera matrix scale, and apply camera rolling
 
-  local cameraScaleMap = math.clamp(math.map(cameraScale, 0.0625, 0.00390625, 1, 10), 1, 10)
+  local finalCameraScale = math.clamp(math.map(cameraScale, 0.0625, 0.00390625, 1, 10), 1, 10)
   if cameraMatVer then
-    local cameraMat = matrices.mat3():scale(cameraScaleMap):rotate(0, 0, finalCameraRot.z):augmented()
+    local cameraMat = matrices.mat3()
+        :scale(finalCameraScale)
+        :rotate(0, 0, finalCameraRot.z)
+        :augmented()
     renderer:setCameraMatrix(cameraMat)
   end
 
@@ -525,13 +510,15 @@ local function cameraRender(delta)
 
   -- Calculate, and apply, camera distance using boxcasting
 
-  local counterDist = boxcast(finalCameraPos, cameraDir, distAtt * scAtt, 0.1)
-  local finalDist = (curr.distance or distAtt) * cameraScale
+  local vanillaDist = boxcast(finalCameraPos, cameraDir, distAtt * scAtt, 0.1)
+  local desiredDist = (curr.distance or distAtt) * cameraScale
   if doCollisions then
-    finalDist = boxcast(finalCameraPos, cameraDir, finalDist, 0.1 * cameraScale)
+    desiredDist = boxcast(finalCameraPos, cameraDir, desiredDist, 0.1 * cameraScale)
   end
 
-  renderer:setCameraPos(offsetCameraPos:add(0, 0, finalDist - counterDist))
+  desiredDist = not renderer:isFirstPerson() and desiredDist or desiredDist
+  local finalDist = desiredDist - vanillaDist
+  renderer:setCameraPos(offsetCameraPos:add(0, 0, finalDist))
 end
 
 -- Determine which event to use, by checking if pre_render exists. Enable compatibility mode if it does not

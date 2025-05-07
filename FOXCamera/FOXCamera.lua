@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.4.4
+FOX's Camera API v1.4.5
 
 Recommended Figura 0.1.6 or Goofy Plugin
 Supports 0.1.5 without pre_render with the built-in compatibility mode
@@ -43,6 +43,7 @@ local cameraPresets = {
 --#REGION ˚♡ Important ♡˚
 
 local isHost = host:isHost()
+local lastRenderCheck
 
 -- Will apply to versions 1.20.6 and above, used to disable applying the camera matrix for scaling and rolling camera on versions that don't support it
 local cameraMatVer = client.compareVersions(client:getVersion(), "1.20.6") ~= -1
@@ -65,10 +66,6 @@ local curr
 ---@class Camera
 local last
 
--- Render context categories for preventing render events from running when they should not
-
--- Used for filtering out pulling the modelpart matrix for contexts that the player isn't rendering in-world
-local playerContext = { RENDER = true, FIRST_PERSON = true }
 -- Used for setting the hiddenPart visibility. ANY OTHER render context will always show the modelpart. (Other is here for FPM support. It cannot distinguish between FPM and shaders)
 local firstPersonContext = { OTHER = true, RENDER = true, FIRST_PERSON = true }
 
@@ -77,7 +74,15 @@ local firstPersonContext = { OTHER = true, RENDER = true, FIRST_PERSON = true }
 
 ---@class CameraAPI
 ---@field attributes {scale: number, cameraDistance: number}
-local CameraAPI = { attributes = {} }
+---@field isActive boolean If any camera is applied
+---@field isRendering boolean? If the active camera modelpart is rendering at all. This is usually the case when in first person with the paper doll disabled. Becomes nil if no camera is applied.
+---@field isCulled boolean? If the active camera modelpart is culled. This is usually the case when going into F1, or your modelpart is hidden, but can have other reasons. Becomes nil if no camera is applied.
+local CameraAPI = {
+  attributes = {},
+}
+
+-- isRendering should be checked from the midRender event
+-- isCulled should be checked by looking at if the partToWorldMatrix changes
 
 ---@class Camera
 ---@field private renderPart ModelPart? A modelpart created when the camera is set. Used for checking if partToWorldMatrix actually returns a matrix
@@ -179,6 +184,7 @@ function CameraAPI.setCamera(camera)
 
   if curr and curr.hiddenPart then
     curr.hiddenPart:setVisible(true)
+    curr.cameraPart.preRender = nil
   end
 
   -- Apply the new camera
@@ -229,10 +235,20 @@ function CameraAPI.setCamera(camera)
     -- Reset the camera rotation (Fixes bug with camera rotation from last frame being applied when changing cameras)
 
     cameraRot = vec(0, 0, 0)
+
+    curr.cameraPart.preRender = function(delta)
+      CameraAPI.isRendering = true
+      lastRenderCheck = world.getTime(delta)
+    end
+
+    CameraAPI.isCulled = true
+    CameraAPI.isRendering = false
   else
     -- Disabling the camera
 
     renderer:cameraPivot():offsetCameraRot():eyeOffset():cameraPos()
+    CameraAPI.isCulled = nil
+    CameraAPI.isRendering = nil
   end
 end
 
@@ -297,6 +313,14 @@ end
 --#ENDREGION
 --#REGION ˚♡ Attributes ♡˚
 
+-- Store if the camera part is rendering
+
+function events.post_render(delta)
+  if not curr then return end
+  if lastRenderCheck == world.getTime(delta) then return end
+  CameraAPI.isRendering = false
+end
+
 -- Scale attribute
 
 CameraAPI.attributes.scale = 1
@@ -304,6 +328,7 @@ CameraAPI.attributes.scale = 1
 local scPartA = models:newPart("FOXCamera_scaleA"):setPos(0, 16 / math.playerScale, 0)
 local scPartB = models:newPart("FOXCamera_scaleB")
 function events.tick()
+  CameraAPI.isActive = curr and true or false
   local scMatA = scPartA:partToWorldMatrix()
   if scMatA.v11 ~= scMatA.v11 then return end -- NaN check
   local scMatB = scPartB:partToWorldMatrix()
@@ -319,7 +344,7 @@ CameraAPI.attributes.cameraDistance = 4 -- TODO Make this take the distance attr
 --#ENDREGION
 --#REGION ˚♡ Camera ♡˚
 
-local doLerp = true -- Set to if the camera is a PLAYER camera or not
+local doLerp = false -- Set to if the camera is a PLAYER camera or not
 local cameraPos = vec(0, 1.62, 0)
 local oldPos, newPos = cameraPos, cameraPos
 
@@ -337,6 +362,12 @@ if isHost then
     if not (curr and doLerp and (curr.doLerpH or curr.doLerpV)) then return end
     oldPos = newPos
     newPos = math.lerp(newPos, cameraPos, 0.5)
+
+    -- Fix for teleporting causing the camera to lerp far away
+
+    if (newPos - cameraPos):length() < 5 then return end
+    newPos = cameraPos
+    renderer:cameraPivot()
   end
 
   -- Set the visibility of arms
@@ -362,8 +393,8 @@ end
 
 -- Gets the partToWorldMatrix of the camera part for the PLAYER camera parent type. Separate from pre_render so there are no lerping
 
-function events.post_render(delta, context)
-  if not (curr and playerContext[context]) then return end
+models:newPart("FOXCamera_postRender", "World").postRender = function(delta)
+  if not (curr and player:isLoaded()) then return end
   doLerp = curr.parentType == "PLAYER"
   if curr.parentType == "WORLD" then return end
 
@@ -375,16 +406,18 @@ function events.post_render(delta, context)
 
   -- Get the position from the matrix
 
-  local localOffset = curr.offsetSpace == "LOCAL" and curr.offsetPos or nil
-  local offsetPos = partMatrix:apply(localOffset):sub(cameraPos)
-
   local thisMat = curr.renderPart:setPos(math.random()):partToWorldMatrix()
-  if thisMat ~= lastMat then
-    lastMat = thisMat
+  CameraAPI.isCulled = thisMat == lastMat or not lastMat
+  lastMat = thisMat
+  if not CameraAPI.isCulled then
+    local localOffset = curr.offsetSpace == "LOCAL" and curr.offsetPos or nil
+    local offsetPos = partMatrix:apply(localOffset):sub(cameraPos)
+    local worldOffset = curr.offsetSpace == "WORLD" and curr.offsetPos or nil
     local xz = curr.unlockPos and 1 or 0
     cameraOffset = (cameraPos - player:getPos(delta))
         :mul(xz, 1, xz)
         :add(offsetPos)
+        :add(worldOffset)
   end
 
   -- Get the rotation from the matrix
@@ -512,6 +545,7 @@ local function cameraRender(delta)
 
   local vanillaDist = boxcast(finalCameraPos, cameraDir, distAtt * scAtt, 0.1)
   local desiredDist = (curr.distance or distAtt) * cameraScale
+
   if doCollisions then
     desiredDist = boxcast(finalCameraPos, cameraDir, desiredDist, 0.1 * cameraScale)
   end
@@ -527,7 +561,7 @@ function events.entity_init()
   if isHost and type(events.pre_render --[[@as Event]]) == "Event" then
     events.pre_render:register(cameraRender)
   else
-    models:newPart("FOXCamera_preRender", isHost and "GUI" or nil).preRender = cameraRender
+    models:newPart("FOXCamera_preRender", isHost and "World" or nil).preRender = cameraRender
     if not logOnCompat then return end
     host:actionbar("§cFOXCamera running in compatibility mode!")
   end

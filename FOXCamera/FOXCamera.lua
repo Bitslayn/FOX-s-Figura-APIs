@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.4.6
+FOX's Camera API v1.5.0
 
 Recommended Figura 0.1.6 or Goofy Plugin
 Supports 0.1.5 without pre_render with the built-in compatibility mode
@@ -65,6 +65,18 @@ end
 local curr
 ---@class Camera
 local last
+
+local finalCameraPos
+local finalCameraRot
+local tOldPos, tLastPos, tNewPos = vec(0, 0, 0), vec(0, 0, 0), vec(0, 0, 0)
+local tOldRot, tLastRot, tNewRot = vec(0, 0, 0), vec(0, 0, 0), vec(0, 0, 0)
+local lerpTimer, lerpTimerEnd = 1, 0
+
+local function easeInOutCubic(x)
+  return x < 0.5 and 4 * x * x * x or 1 - math.pow(-2 * x + 2, 3) / 2
+end
+
+local lerpFunc = easeInOutCubic
 
 -- Used for setting the hiddenPart visibility. ANY OTHER render context will always show the modelpart. (Other is here for FPM support. It cannot distinguish between FPM and shaders)
 local firstPersonContext = { OTHER = true, RENDER = true, FIRST_PERSON = true }
@@ -177,14 +189,26 @@ local cameraRot = vec(0, 0, 0) -- This is here just so I can reset it when the c
 
 ---Sets the active camera
 ---
----When no camera is given, or the argument is nil, this disables FOXCamera, using the vanilla camera instead
+---Camera easing will not happen when disabling the camera by giving nil
 ---@param camera Camera?
-function CameraAPI.setCamera(camera)
+---@param lerpTick number? How many ticks to ease the camera when switching between cameras
+---@param easeFunc function? The ease function, uses easeInOutCubic if none is defined
+function CameraAPI.setCamera(camera, lerpTick, easeFunc)
   -- When switching cameras, set the visibility of the last hidden part to visible so it's not stuck being invisible
 
   if curr and curr.hiddenPart then
     curr.hiddenPart:setVisible(true)
     curr.cameraPart.preRender = nil
+  end
+
+  -- Initiate lerping between cameras
+
+  if lerpTick then
+    lerpFunc = type(easeFunc) == "function" and easeFunc or easeInOutCubic
+    tOldPos, tOldRot = finalCameraPos, finalCameraRot
+    tLastPos, tLastRot = finalCameraPos, finalCameraRot
+    tNewPos, tNewRot = finalCameraPos, finalCameraRot
+    lerpTimer, lerpTimerEnd = 0, lerpTick
   end
 
   -- Apply the new camera
@@ -249,6 +273,10 @@ function CameraAPI.setCamera(camera)
     renderer:cameraPivot():offsetCameraRot():eyeOffset():cameraPos()
     CameraAPI.isCulled = nil
     CameraAPI.isRendering = nil
+    last = nil
+
+    finalCameraPos = player:getPos():add(0, player:getEyeHeight(), 0)
+    finalCameraRot = vec(0, 0, 0)
   end
 end
 
@@ -344,7 +372,7 @@ CameraAPI.attributes.cameraDistance = 4 -- TODO Make this take the distance attr
 --#ENDREGION
 --#REGION ˚♡ Camera ♡˚
 
-local doLerp = false -- Set to if the camera is a PLAYER camera or not
+local doLerp -- Set to if the camera is a PLAYER camera or not
 local cameraPos = vec(0, 1.62, 0)
 local oldPos, newPos = cameraPos, cameraPos
 
@@ -368,6 +396,22 @@ if isHost then
     if (newPos - cameraPos):length() < 5 then return end
     newPos = cameraPos
     renderer:cameraPivot()
+  end
+
+  -- Ease when switching cameras
+
+  function events.tick()
+    if lerpTimer > lerpTimerEnd then return end
+
+    lerpTimer = lerpTimer + 1
+    local lerp = lerpFunc(lerpTimer / lerpTimerEnd)
+    assert(type(lerp) == "number",
+      "The easing function provided for switching cameras did not return a number!")
+
+    tLastPos = tNewPos or tOldPos
+    tLastRot = tNewRot or tOldRot
+    tNewPos = math.lerp(tOldPos, finalCameraPos, lerp)
+    tNewRot = math.lerp(tOldRot, finalCameraRot, lerp)
   end
 
   -- Set the visibility of arms
@@ -481,6 +525,7 @@ local function cameraRender(delta)
   local distAtt = CameraAPI.attributes.cameraDistance
   local scAtt = CameraAPI.attributes.scale
   local cameraScale = curr.scale * scAtt
+  local doTLerp = lerpTimer <= lerpTimerEnd
 
   -- Calculate the camera rotation
 
@@ -493,7 +538,7 @@ local function cameraRender(delta)
 
   -- Offset camera rotation by player rotation if the camera hasn't changed
 
-  local finalCameraRot = cameraRot or vec(0, 0, 0)
+  finalCameraRot = cameraRot or vec(0, 0, 0)
   if curr.unlockRot and last == curr then
     finalCameraRot = cameraRot - player:getRot(delta).xy_
   end
@@ -501,7 +546,6 @@ local function cameraRender(delta)
 
   -- Calculate the camera position, and lerp
 
-  local finalCameraPos
   if curr.parentType == "PLAYER" then
     if curr.doLerpH or curr.doLerpV then
       local lerp = math.lerp(oldPos, newPos, delta)
@@ -518,11 +562,14 @@ local function cameraRender(delta)
 
   local offsetCameraPos = curr.offsetSpace == "CAMERA" and curr.offsetPos:copy() or vec(0, 0, 0)
 
-  renderer:cameraPivot(finalCameraPos)
-      :offsetCameraRot(finalCameraRot)
+  local lerpedFinalCameraPos = doTLerp and math.lerp(tLastPos, tNewPos, delta) or finalCameraPos
+  local lerpedFinalCameraRot = doTLerp and math.lerp(tLastRot, tNewRot, delta) or finalCameraRot
+
+  renderer:cameraPivot(lerpedFinalCameraPos)
+      :offsetCameraRot(lerpedFinalCameraRot)
       :cameraPos(offsetCameraPos)
 
-  lastCameraPos = finalCameraPos
+  lastCameraPos = lerpedFinalCameraPos
 
   -- Set the camera matrix scale, and apply camera rolling
 
@@ -530,7 +577,7 @@ local function cameraRender(delta)
   if cameraMatVer then
     local cameraMat = matrices.mat3()
         :scale(finalCameraScale)
-        :rotate(0, 0, finalCameraRot.z)
+        :rotate(0, 0, lerpedFinalCameraRot.z)
         :augmented()
     renderer:setCameraMatrix(cameraMat)
   end
@@ -539,15 +586,15 @@ local function cameraRender(delta)
 
   -- Disable collisions in spectator mode
 
-  local doCollisions = player:getGamemode() ~= "SPECTATOR" and curr.doCollisions
+  local doCollisions = not doTLerp and player:getGamemode() ~= "SPECTATOR" and curr.doCollisions
 
   -- Calculate, and apply, camera distance using boxcasting
 
-  local vanillaDist = boxcast(finalCameraPos, cameraDir, distAtt * scAtt, 0.1)
+  local vanillaDist = boxcast(lerpedFinalCameraPos, cameraDir, distAtt * scAtt, 0.1)
   local desiredDist = (curr.distance or distAtt) * cameraScale
 
   if doCollisions then
-    desiredDist = boxcast(finalCameraPos, cameraDir, desiredDist, 0.1 * cameraScale)
+    desiredDist = boxcast(lerpedFinalCameraPos, cameraDir, desiredDist, 0.1 * cameraScale)
   end
 
   desiredDist = not renderer:isFirstPerson() and desiredDist or desiredDist

@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.5.0
+FOX's Camera API v1.5.1
 
 Recommended Figura 0.1.6 or Goofy Plugin
 Supports 0.1.5 without pre_render with the built-in compatibility mode
@@ -205,6 +205,9 @@ function CameraAPI.setCamera(camera, lerpTick, easeFunc)
 
   if lerpTick then
     lerpFunc = type(easeFunc) == "function" and easeFunc or easeInOutCubic
+    local succ, res = pcall(lerpFunc, 1)
+    assert(succ and type(res) == "number",
+      "The easing function provided for switching cameras does not return a number!", 2)
     tOldPos, tOldRot = finalCameraPos, finalCameraRot
     tLastPos, tLastRot = finalCameraPos, finalCameraRot
     tNewPos, tNewRot = finalCameraPos, finalCameraRot
@@ -405,8 +408,6 @@ if isHost then
 
     lerpTimer = lerpTimer + 1
     local lerp = lerpFunc(lerpTimer / lerpTimerEnd)
-    assert(type(lerp) == "number",
-      "The easing function provided for switching cameras did not return a number!")
 
     tLastPos = tNewPos or tOldPos
     tLastRot = tNewRot or tOldRot

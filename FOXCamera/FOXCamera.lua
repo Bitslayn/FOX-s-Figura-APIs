@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.4.5
+FOX's Camera API v1.4.6
 
 Recommended Figura 0.1.6 or Goofy Plugin
 Supports 0.1.5 without pre_render with the built-in compatibility mode
@@ -393,8 +393,8 @@ end
 
 -- Gets the partToWorldMatrix of the camera part for the PLAYER camera parent type. Separate from pre_render so there are no lerping
 
-models:newPart("FOXCamera_postRender", "World").postRender = function(delta)
-  if not (curr and player:isLoaded()) then return end
+local function postRender(delta)
+  if not curr then return end
   doLerp = curr.parentType == "PLAYER"
   if curr.parentType == "WORLD" then return end
 
@@ -564,6 +564,12 @@ function events.entity_init()
     models:newPart("FOXCamera_preRender", isHost and "World" or nil).preRender = cameraRender
     if not logOnCompat then return end
     host:actionbar("§cFOXCamera running in compatibility mode!")
+  end
+
+  if isHost then
+    events.post_world_render:register(postRender)
+  else
+    events.post_render:register(postRender)
   end
 end
 

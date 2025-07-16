@@ -3,10 +3,10 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.5.0
+FOX's Camera API v1.5.1
 
-Recommended Figura 0.1.6 or Goofy Plugin
-Supports 0.1.5 without pre_render with the built-in compatibility mode
+Recommended Goofy Plugin or
+Supports versions of Figura without pre_render, using the built-in compatibility mode
 
 It is HIGHLY recommended that you install Sumneko's Lua Language Server and GS Figura Docs
 LLS: https://marketplace.visualstudio.com/items/?itemName=sumneko.lua
@@ -19,7 +19,7 @@ FOXCamera Wiki: https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXCamera
 
 --#REGION ˚♡ Library configs ♡˚
 
--- Anything in here can be changed or adjusted. Just remember to keep things neat and tidy :3
+-- Anything in here can be changed or adjusted
 
 local logOnCompat = true -- Set this to false to disable compatibility warnings
 
@@ -57,7 +57,7 @@ figuraMetatables.Vector3.__metatable = false
 ---@param message? any
 ---@param level? integer
 ---@return T v
-function assert(v, message, level)
+local function assert(v, message, level)
   return v or error(message or "Assertion failed!", (level or 1) + 1)
 end
 
@@ -439,6 +439,7 @@ end
 -- Gets the partToWorldMatrix of the camera part for the PLAYER camera parent type. Separate from pre_render so there are no lerping
 
 local function postRender(delta)
+  if not player:isLoaded() then return end
   if not curr then return end
   doLerp = curr.parentType == "PLAYER"
   if curr.parentType == "WORLD" then return end
@@ -495,6 +496,8 @@ local function postRender(delta)
 end
 
 -- Uses pre_render, or <ModelPart>.preRender if that doesn't exist
+
+-- local checkPos
 
 local function cameraRender(delta)
   if not curr then return end
@@ -560,6 +563,7 @@ local function cameraRender(delta)
   else
     finalCameraPos = cameraPos:copy():add(curr.offsetPos * curr.scale)
   end
+  -- checkPos = finalCameraPos
 
   local offsetCameraPos = curr.offsetSpace == "CAMERA" and curr.offsetPos:copy() or vec(0, 0, 0)
 
@@ -603,21 +607,56 @@ local function cameraRender(delta)
   renderer:setCameraPos(offsetCameraPos:add(0, 0, finalDist))
 end
 
+-- Determine if pre_render actually works as intended
+
+-- local function compatCheck()
+--   if not (checkPos and renderer:isFirstPerson()) or (checkPos - client:getCameraPos()):length() == 0 then return end
+--   print(tostring((checkPos - client:getCameraPos()):length()))
+--   ---@diagnostic disable-next-line: undefined-field
+--   events.pre_render:remove(cameraRender)
+--   models:newPart("FOXCamera_preRender", "GUI").preRender = cameraRender
+--   if logOnCompat then
+--     local disableMessage = "§4FOXCamera running in compatibility mode!\n§c%s§r\n"
+--     printJson(disableMessage:format(
+--       "events.pre_render is incompatible!\n\nThis could be because the event that does exists runs too late in the render thread. Try updating your Figura version or reporting this as an issue."))
+--   end
+--   events.render:remove(compatCheck)
+-- end
+
 -- Determine which event to use, by checking if pre_render exists. Enable compatibility mode if it does not
 
-function events.entity_init()
-  if isHost and type(events.pre_render --[[@as Event]]) == "Event" then
-    events.pre_render:register(cameraRender)
-  else
-    models:newPart("FOXCamera_preRender", isHost and "World" or nil).preRender = cameraRender
-    if not logOnCompat then return end
-    host:actionbar("§cFOXCamera running in compatibility mode!")
-  end
+if isHost and type(events.pre_render --[[@as Event]]) == "Event" then
+  events.pre_render:register(cameraRender)
+  if not isHost then return end
+  -- events.render:register(compatCheck)
+else
+  models:newPart("FOXCamera_preRender", isHost and "World" or nil).preRender = cameraRender
+  if not logOnCompat then return end
+  host:actionbar("§cFOXCamera running in compatibility mode!")
+end
 
-  if isHost then
-    events.post_world_render:register(postRender)
-  else
-    events.post_render:register(postRender)
+if isHost then
+  events.post_world_render:register(postRender)
+else
+  events.post_render:register(postRender)
+end
+
+if isHost then
+  local lastCamera
+  local lastFreecam = false
+  function events.tick()
+    local actionbar = client:getActionbar()
+    if not (actionbar and actionbar:find("Toggled Free Camera")) then return end
+    local isFreecam = actionbar:find("ON") and true or false
+    if lastFreecam == isFreecam then return end
+    lastFreecam = isFreecam
+
+    if isFreecam then
+      lastCamera = CameraAPI.getCamera()
+      CameraAPI.setCamera()
+    else
+      CameraAPI.setCamera(lastCamera)
+    end
   end
 end
 

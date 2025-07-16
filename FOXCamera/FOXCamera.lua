@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.5.1
+FOX's Camera API v1.5.2
 
 Recommended Goofy Plugin or
 Supports versions of Figura without pre_render, using the built-in compatibility mode
@@ -500,6 +500,7 @@ end
 -- local checkPos
 
 local function cameraRender(delta)
+  if not player:isLoaded() then return end
   if not curr then return end
 
   -- Calculate the eye offset

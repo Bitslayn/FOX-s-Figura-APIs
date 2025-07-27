@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Raytrace Utility v1.0.0
+FOX's Raytrace Utility v1.0.1
 
 Adds raycast:aabbTraced(), raycast:blockTraced(), and raycast:entityTraced() functions which trace rays and aabbs
 

@@ -252,6 +252,7 @@ local lineClass = {
 
     local i = 0
     for _, task in pairs(self[1].model:getTask()) do
+      i = i + 1
       local mat = matrices.mat4()
           :scale((a - b):length(), 1, 1)
           :rotate(0, 270, i * 90)

@@ -36,7 +36,7 @@ local configs = {
 --#REGION ˚♡ Raytrace - Handler ♡˚
 ------------------------------------------------------------------------------------------------
 
-local line = require("../line")
+local line = require("./line")
 ---@type {[string]: {startOpacity: number, oldOpacity: number, newOpacity: number, lastTime: number}}
 local traced = {}
 

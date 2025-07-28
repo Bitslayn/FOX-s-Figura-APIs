@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Line Utility v1.0.0
+FOX's Line Utility v1.1.0
 
 Lines and outlines render in the world using the line render type. They are useful for debugging, visualizing aabbs, and other purposes.
 You can easily be color, move and size lines and outlines.
@@ -159,12 +159,12 @@ end
 --#REGION ˚♡ Outline > Object ♡˚
 ------------------------------------------------------------------------------------------------
 
----@overload fun(a: Vector3, b: Vector3): FOXOutline
----@overload fun(pos: Vector3): FOXOutline
+---@overload fun(a: Vector3?, b: Vector3?): FOXOutline
+---@overload fun(pos: Vector3?): FOXOutline
 function lib.newOutline(...)
   local param = { ... }
-  local a, b = param[1] or vec(0, 0, 0), param[2]
-  local size = vec(1, 1, 1)
+  local a, b = param[1] or vectors.vec3(), param[2] or not param[1] and vectors.vec3() or nil
+  local size = vectors.vec3() + 1
 
   local outline = world:newPart("outline")
   for i, mat in ipairs(outlineMatrices()) do
@@ -174,7 +174,7 @@ function lib.newOutline(...)
         :size(1, 1)
         :matrix(mat)
         :renderType("LINES")
-        :color(vec(0, 0, 0, 0.4))
+        :color(vectors.vec3():augmented(0.4))
   end
 
   ---@type FOXOutline
@@ -183,7 +183,7 @@ function lib.newOutline(...)
     ab = { a, b },
     pos = math.lerp(a, b or a, 0.5) --[[@as Vector3]],
     size = size,
-    color = vec(0, 0, 0, 0.4),
+    color = vectors.vec3():augmented(0.4),
   } }, outMeta)
   if b then
     self.ab = { a, b }
@@ -200,14 +200,14 @@ end
 
 if false then
   ---Creates a new outline using sprite tasks
-  ---@param a Vector3
-  ---@param b Vector3
+  ---@param a Vector3?
+  ---@param b Vector3?
   ---@return FOXOutline
   ---@diagnostic disable-next-line: missing-return, unused-local
   function lib.newOutline(a, b) end
 
   ---Creates a new outline using sprite tasks
-  ---@param pos Vector3
+  ---@param pos Vector3?
   ---@return FOXOutline
   ---@diagnostic disable-next-line: missing-return, unused-local
   function lib.newOutline(pos) end
@@ -280,11 +280,12 @@ local lineMeta = {
 ------------------------------------------------------------------------------------------------
 
 ---Creates a new line using sprite tasks
----@param a Vector3
----@param b Vector3
+---@param a Vector3?
+---@param b Vector3?
 ---@return FOXLine
 function lib.newLine(a, b)
   local line = world:newPart("line")
+  a, b = a or vectors.vec3(), b or vectors.vec3()
   for i = 0, 1 do
     ---@diagnostic disable-next-line: param-type-mismatch
     line:newSprite(i)
@@ -297,7 +298,7 @@ function lib.newLine(a, b)
   local self = setmetatable({ {
     model = line,
     ab = { a, b },
-    color = vec(1, 1, 1, 1),
+    color = vectors.vec3() + 1,
   } }, lineMeta)
   self.ab = { a, b }
 

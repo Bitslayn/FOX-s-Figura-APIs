@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Line Utility v1.1.0
+FOX's Line Utility v1.1.1
 
 Lines and outlines render in the world using the line render type. They are useful for debugging, visualizing aabbs, and other purposes.
 You can easily be color, move and size lines and outlines.
@@ -33,6 +33,7 @@ myOutline.model:remove()
 
 local lib = {}
 local world = models:newPart("FOX_lutil", "World"):scale(16)
+local blank = textures:newTexture("FOX_lutil", 1, 1)
 
 --==============================================================================================================================
 --#REGION ˚♡ Outline ♡˚
@@ -55,11 +56,11 @@ local world = models:newPart("FOX_lutil", "World"):scale(16)
 local outClass = {
   color = function(self, color)
     for _, task in pairs(self[1].model:getTask()) do task --[[@as SpriteTask]]:color(color) end
-    self[1].color = color
+    self[1].color = color or vectors.vec3():augmented(0.4)
   end,
   pos = function(self, pos)
     local data = self[1]
-    data.pos = pos
+    data.pos = pos or vec(0, 0, 0)
 
     data.model:pos(pos + 0.5 --[[@as Vector3]])
 
@@ -68,7 +69,8 @@ local outClass = {
   end,
   ab = function(self, ab)
     local data = self[1]
-    local a, b = ab[1], ab[2]
+    ab = ab or {}
+    local a, b = ab[1] or vectors.vec3(), ab[2] or vectors.vec3()
 
     data.ab[1] = a
     data.ab[2] = b
@@ -79,7 +81,7 @@ local outClass = {
   end,
   size = function(self, size)
     local data = self[1]
-    local scale = size
+    local scale = size or vec(1, 1, 1)
 
     data.ab[1] = data.pos + scale / 2 + 0.5
     data.ab[2] = data.pos - scale / 2 + 0.5
@@ -170,7 +172,7 @@ function lib.newOutline(...)
   for i, mat in ipairs(outlineMatrices()) do
     ---@diagnostic disable-next-line: param-type-mismatch
     outline:newSprite(i)
-        :setTexture(textures:getTextures()[1])
+        :setTexture(blank)
         :size(1, 1)
         :matrix(mat)
         :renderType("LINES")
@@ -234,11 +236,12 @@ end
 local lineClass = {
   color = function(self, color)
     for _, task in pairs(self[1].model:getTask()) do task --[[@as SpriteTask]]:color(color) end
-    self[1].color = color
+    self[1].color = color or vectors.vec3() + 1
   end,
   ab = function(self, ab)
     local data = self[1]
-    local a, b = ab[1], ab[2]
+    ab = ab or {}
+    local a, b = ab[1] or vectors.vec3(), ab[2] or vectors.vec3()
 
     data.ab[1] = a
     data.ab[2] = b
@@ -289,7 +292,7 @@ function lib.newLine(a, b)
   for i = 0, 1 do
     ---@diagnostic disable-next-line: param-type-mismatch
     line:newSprite(i)
-        :setTexture(textures:getTextures()[1])
+        :setTexture(blank)
         :size(1, 0)
         :renderType("LINES")
   end

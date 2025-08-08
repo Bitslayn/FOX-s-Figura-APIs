@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Custom Placeholders Utility v1.0.0
+FOX's Custom Placeholders v1.0.0
 --]]
 --#REGION ˚♡ Metatable store ♡˚
 

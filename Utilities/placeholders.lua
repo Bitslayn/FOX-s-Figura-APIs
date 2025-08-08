@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Custom Placeholders v1.0.3
+FOX's Custom Placeholders v1.1.0
 --]]
 --#REGION ˚♡ Metatable store ♡˚
 
@@ -50,7 +50,7 @@ local function applySingleName(name)
 	local self = nameplate[name]
 	local class = nameClasses[self]
 
-	nameIndex[class.index].setText(self, names[class.name]:gsub("%${(%w+)}", placeholders[1]))
+	nameIndex[class.index].setText(self, names[class.name]:gsub("%${([%w_]+)}", placeholders[1]))
 end
 
 local function applyAllNames()
@@ -59,7 +59,7 @@ end
 
 ---@param task TextTask
 local function applySingleTask(task)
-	taskIndex.setText(task, tasks[task]:gsub("%${(%w+)}", placeholders[1]))
+	taskIndex.setText(task, tasks[task]:gsub("%${([%w_]+)}", placeholders[1]))
 end
 
 local function applyAllTasks()

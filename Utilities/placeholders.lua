@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Custom Placeholders v1.0.0
+FOX's Custom Placeholders v1.0.1
 --]]
 --#REGION ˚♡ Metatable store ♡˚
 
@@ -37,7 +37,7 @@ local tasks = {}
 ---Placeholders are replaced automatically if they are found in your nameplate
 ---
 ---`${key}` is replaced by value
----@type {[string]: any}
+---@class Placeholders
 local placeholders = {}
 ---@package DO NOT TOUCH
 placeholders[1] = {}

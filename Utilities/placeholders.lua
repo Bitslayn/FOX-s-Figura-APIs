@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Custom Placeholders v1.0.1
+FOX's Custom Placeholders v1.0.2
 --]]
 --#REGION ˚♡ Metatable store ♡˚
 
@@ -124,8 +124,10 @@ local taskProxy = {}
 function taskProxy:setText(text)
 	local succ, err = pcall(taskIndex.setText, self, text)
 
-	tasks[self] = text:find("%$%b{}") and text or nil
-	applySingleTask(self)
+	if succ then
+		tasks[self] = text and text:find("%$%b{}") and text or nil
+		applySingleTask(self)
+	end
 
 	return succ and self or error(err, 2)
 end

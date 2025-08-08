@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Custom Placeholders v1.0.2
+FOX's Custom Placeholders v1.0.3
 --]]
 --#REGION ˚♡ Metatable store ♡˚
 
@@ -38,6 +38,7 @@ local tasks = {}
 ---
 ---`${key}` is replaced by value
 ---@class FOXPlaceholders
+---@field [string] string|number
 local placeholders = {}
 ---@package DO NOT TOUCH
 placeholders[1] = {}
@@ -125,8 +126,8 @@ function taskProxy:setText(text)
 	local succ, err = pcall(taskIndex.setText, self, text)
 
 	if succ then
-		tasks[self] = text and text:find("%$%b{}") and text or nil
-		applySingleTask(self)
+		tasks[self] = string.find(text or "", "%$%b{}") and text or nil
+		if tasks[self] then applySingleTask(self) end
 	end
 
 	return succ and self or error(err, 2)

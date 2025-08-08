@@ -37,7 +37,7 @@ local tasks = {}
 ---Placeholders are replaced automatically if they are found in your nameplate
 ---
 ---`${key}` is replaced by value
----@class Placeholders
+---@class FOXPlaceholders
 local placeholders = {}
 ---@package DO NOT TOUCH
 placeholders[1] = {}

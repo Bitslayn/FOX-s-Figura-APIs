@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's AFK Nameplate v1.0.0
+FOX's AFK Nameplate v1.0.1
 
 Requires FOX's Custom Placeholders: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/placeholders.lua
 --]]
@@ -206,17 +206,19 @@ end
 
 local lastTick
 local function run()
-	local thisTick = math.floor(world.getTime() / 5)
-	if lastTick == thisTick then return end
-	lastTick = thisTick
+	pcall(function()
+		local thisTick = math.floor(world.getTime() / 5)
+		if lastTick == thisTick then return end
+		lastTick = thisTick
 
-	if player:isLoaded() then checkAction() end
-	updatePlaceholder()
+		if player:isLoaded() then checkAction() end
+		updatePlaceholder()
 
-	if not host:isHost() then return end
-	if not (client.isWindowFocused() or afk.isAFK) then
-		pings.afk()
-	end
+		if not host:isHost() then return end
+		if not (client.isWindowFocused() or afk.isAFK) then
+			pings.afk()
+		end
+	end)
 end
 
 models:newPart("afk", "Portrait").midRender = run

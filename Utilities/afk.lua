@@ -3,21 +3,21 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's AFK Nameplate v0.9.0
+FOX's AFK Nameplate v0.9.1
 
 Requires FOX's Custom Placeholders: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/placeholders.lua
 --]]
 --#REGION ˚♡ Vars ♡˚
 
 ---@class FOXAFK2
----@field isAFK boolean If the user is AFK. They're AFK if `afk.AFKtime` is greater than `afk.config.timeUntilAFK`
+---@field isAFK boolean If the user is AFK. They're AFK if `afk.AFKTime` is greater than `afk.config.timeUntilAFK`
 ---@field isForcedAFK boolean If the player is forced AFK. They can only be forced AFK by running `pings.afk()`
 ---@field AFKTime integer The amount of seconds the player has been idle for
 ---@field config FOXAFK2.configs
 local afk = {
 	isAFK = false,
 	isForcedAFK = false,
-	AFKtime = 0,
+	AFKTime = 0,
 
 	---@class FOXAFK2.configs
 	---@field timeUntilAFK integer
@@ -167,7 +167,7 @@ local function updatePlaceholder()
 
 	afk.isAFK = s >= afk.config.timeUntilAFK or forceAFK
 	afk.isForcedAFK = forceAFK
-	afk.AFKtime = s
+	afk.AFKTime = s
 
 	placeholders.afk = timeFormat(afk.isAFK and cfg[h < 1 and "short" or "long"] --[[@as string]] or cfg.active, timings)
 	placeholders.afk_alt = timeFormat(afk.isAFK and cfg.alt or cfg.altActive, timings)

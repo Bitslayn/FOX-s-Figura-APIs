@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's AFK Nameplate v1.0.1
+FOX's AFK Nameplate v1.0.2
 
 Requires FOX's Custom Placeholders: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/placeholders.lua
 --]]
@@ -224,6 +224,7 @@ end
 models:newPart("afk", "Portrait").midRender = run
 events.tick = run
 events.on_play_sound = run
+events.skull_render = run
 
 --#ENDREGION
 

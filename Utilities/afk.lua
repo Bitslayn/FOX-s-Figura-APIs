@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's AFK Nameplate v1.0.2
+FOX's AFK Nameplate v1.0.3
 
 Requires FOX's Custom Placeholders: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/placeholders.lua
 --]]
@@ -132,6 +132,16 @@ end
 
 -- Ping function and repings
 
+local function afkFunc(time, forced)
+	if not (time or forced) then
+		forceAFK = true
+		return
+	end
+
+	lastAction = time and client.getSystemTime() - time or lastAction
+	forceAFK = forced
+end
+
 ---Sets the AFK time in ms, and allows you to force AFK
 ---
 ---If no arguments are passed, the timer will not change and the player will be forced into AFK. This is the same as passing nil for the time and true for forced.
@@ -142,13 +152,7 @@ end
 ---@param time number?
 ---@param forced boolean?
 function pings.afk(time, forced)
-	if not (time or forced) then
-		forceAFK = true
-		return
-	end
-
-	lastAction = time and client.getSystemTime() - time or lastAction
-	forceAFK = forced
+	afkFunc(time, forced)
 end
 
 if host:isHost() then
@@ -172,7 +176,11 @@ end
 ---Function to run to get out of AFK when an action is made
 local function action()
 	if afk.isAFK then
-		pings.afk(0)
+		if host:isHost() then
+			pings.afk(0)
+		else
+			afkFunc(0)
+		end
 	else
 		lastAction = client.getSystemTime()
 	end

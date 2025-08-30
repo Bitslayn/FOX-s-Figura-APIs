@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Custom Placeholders v1.1.1
+FOX's Custom Placeholders v1.1.2
 --]]
 --#REGION ˚♡ Metatable store ♡˚
 
@@ -137,7 +137,7 @@ taskProxy.text = taskProxy.setText
 
 -- Gets the unmodified or original texttask text
 
-function nameProxy:getText()
+function taskProxy:getText()
 	return tasks[self] or taskIndex.getText(self)
 end
 

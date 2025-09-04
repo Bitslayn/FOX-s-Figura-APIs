@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.5.2
+FOX's Camera API v1.5.3
 
 Recommended Goofy Plugin or
 Supports versions of Figura without pre_render, using the built-in compatibility mode
@@ -460,7 +460,13 @@ local function postRender(delta)
     local offsetPos = partMatrix:apply(localOffset):sub(cameraPos)
     local worldOffset = curr.offsetSpace == "WORLD" and curr.offsetPos or nil
     local xz = curr.unlockPos and 1 or 0
-    cameraOffset = (cameraPos - player:getPos(delta))
+
+    local nbt = player:getNbt()
+    local pehkui = nbt["pehkui:scale_data_types"] and
+        nbt["pehkui:scale_data_types"]["pehkui:base"] and
+        nbt["pehkui:scale_data_types"]["pehkui:base"].scale
+
+    cameraOffset = ((cameraPos - player:getPos(delta)) * (renderer:isFirstPerson() and pehkui or 1))
         :mul(xz, 1, xz)
         :add(offsetPos)
         :add(worldOffset)

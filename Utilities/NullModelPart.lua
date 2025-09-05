@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Better ModelPart Errors v0.1.1
+FOX's Better ModelPart Errors v0.1.2
 ]]
 
 ---Custom error message for calling a method on NullModelParts
@@ -11,9 +11,9 @@ local err = [=[ModelPart path is incorrect. Underlined does not exist in non-und
 
 %s
 script:
-%s§c<--[Here]
+%s§o<--[Here]§c
 
-(Below contains traceback for method called on NullModelPart)]=]
+(Below contains additional information)]=]
 
 ---@class ModelPart
 local ModelPart = figuraMetatables.ModelPart
@@ -81,3 +81,7 @@ function ModelPart:__index(key)
 	return script:find("[=(,]%s*models") and
 	setmetatable({ [1] = { stack = stack, script = script, depth = 1 } }, NullModelPart_i)
 end
+
+local a = models.Models
+local b = a.b
+print(type(b))

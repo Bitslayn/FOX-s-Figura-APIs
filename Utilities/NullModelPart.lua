@@ -81,7 +81,3 @@ function ModelPart:__index(key)
 	return script:find("[=(,]%s*models") and
 	setmetatable({ [1] = { stack = stack, script = script, depth = 1 } }, NullModelPart_i)
 end
-
-local a = models.Models
-local b = a.b
-print(type(b))

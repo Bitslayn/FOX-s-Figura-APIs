@@ -106,6 +106,3 @@ function ModelPart:__index(key)
 	if not priv.script:find("[=(,]%s*models") then return end
 	return setmetatable({ [1] = priv }, NullModelPart_i)
 end
-
-local a, b = models.Models.Player.root["A B"], models.Models.Player.Root
-print(a:rot(), b:rot())

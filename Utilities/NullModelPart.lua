@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Better ModelPart Errors v0.1.0
+FOX's Better ModelPart Errors v0.1.1
 ]]
 
 ---Custom error message for calling a method on NullModelParts
@@ -23,9 +23,12 @@ local MP_i = ModelPart.__index
 local NullModelPart_i = {
 	__type = "NullModelPart",
 	__index = function(self, key)
-		if type(MP_i(models, key)) ~= "function" then return self end
-
 		local priv = self[1]
+		if type(MP_i(models, key)) ~= "function" and priv.depth < 16 then
+			priv.depth = priv.depth + 1
+			return self
+		end
+
 		error(err:format(priv.stack, priv.script), 2)
 	end,
 	__metatable = nil,
@@ -61,7 +64,7 @@ function ModelPart:__index(key)
 	local i = 0
 	for v in decoded:gmatch("[^\n]*") do
 		i = i + 1
-		if i == scriptLine then rawScript = "  " .. v end
+		if i == scriptLine then rawScript = "  " .. v:gsub("%s*$", "") end
 	end
 
 	-- Underline invalid index
@@ -75,5 +78,6 @@ function ModelPart:__index(key)
 
 	-- Create and return NullModelPart only if organically indexed
 
-	return script:find("[=(,]%s*models") and setmetatable({ [1] = { stack = stack, script = script } }, NullModelPart_i)
+	return script:find("[=(,]%s*models") and
+	setmetatable({ [1] = { stack = stack, script = script, depth = 1 } }, NullModelPart_i)
 end

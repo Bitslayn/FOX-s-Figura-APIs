@@ -3,14 +3,14 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Better ModelPart Errors v0.2.1
+FOX's Better ModelPart Errors v0.2.2
 ]]
 
 ---@param priv NullModelPart.*INTERNAL*
 local function buildError(priv)
 	local formatting = ""
 	for k, v in ipairs(priv.index) do
-		formatting = formatting .. (v:find("%s") and '["%s"]' or ".%s"):format(v) --[[@as string]]
+		formatting = formatting .. (v:find("%W") and '["%s"]' or ".%s"):format(v) --[[@as string]]
 
 		if k == priv.validDepth then
 			formatting = formatting .. "§c§n"

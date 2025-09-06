@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Better ModelPart Errors v0.2.2
+FOX's Better ModelPart Errors v0.3.0
 ]]
 
 ---@param priv NullModelPart.*INTERNAL*
@@ -16,18 +16,12 @@ local function buildError(priv)
 			formatting = formatting .. "§c§n"
 		end
 	end
-	formatting = "§7" .. formatting:gsub("^%.", "") .. "§c"
+	formatting = "§7" .. formatting:gsub("^%.", "") .. "§r"
 
 	local err =
-	'ModelPart path is incorrect. "%s" is not a child of "%s". Please check spelling and capitalization \n\n%s§o<--[Here]§c\n\n%s\nscript:\n  %s\n\n(Below contains additional information)'
+	"\n\n§f§lModelPart path is incorrect:\n%s §c§o<--[Here]\n\n§fRead further to see where this error occurs in your code§c\n\n%s\nscript:\n  %s\n\n(Below contains additional information)"
 
-	error(err:format(
-		priv.index[priv.validDepth + 1],
-		priv.index[priv.validDepth],
-		formatting,
-		priv.stack,
-		priv.script
-	), 3)
+	error(err:format(formatting, priv.stack, priv.script), 3)
 end
 
 ---@class ModelPart
@@ -83,11 +77,15 @@ function ModelPart:__index(key)
 
 	-- Get exact line from script where invalid part was indexed
 
+	---@type string, string
+	local a, b
 	local i = 0
 	for v in decoded:gmatch("[^\n]*") do
 		i = i + 1
-		if i == scriptLine then priv.script = v:gsub("%s*$", "") end
+		if i == scriptLine - 1 then a = v:gsub("%s*$", "") end
+		if i == scriptLine then b = v:gsub("%s*$", "") end
 	end
+	priv.script = b:find("^%s*%)") and a or b
 
 	-- Build index tree
 
@@ -108,6 +106,6 @@ function ModelPart:__index(key)
 
 	-- Create and return NullModelPart only if organically indexed
 
-	if not priv.script:find("[=(,]%s*models") then return end
+	if not (priv.script:find("[^%.]models") or priv.script:find("^models")) then return end
 	return setmetatable({ [1] = priv }, NullModelPart_i)
 end

@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Better ModelPart Errors v0.3.0
+FOX's Better ModelPart Errors v0.3.1
 ]]
 
 ---@param priv NullModelPart.*INTERNAL*
@@ -49,6 +49,8 @@ local NullModelPart_i = {
 }
 
 function ModelPart:__index(key)
+	if not key then return end
+	
 	local valid = MP_i(self, key)
 	if valid then return valid end
 

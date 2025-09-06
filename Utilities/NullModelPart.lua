@@ -3,26 +3,31 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Better ModelPart Errors v0.2.0
+FOX's Better ModelPart Errors v0.2.1
 ]]
 
 ---@param priv NullModelPart.*INTERNAL*
 local function buildError(priv)
-	local formatting = "§7" .. priv.index[1]
-	for i = 2, #priv.index do
-		local v = priv.index[i]
-		formatting = formatting .. (v:find("%s") and '["%s"]' or ".%s"):format(v)
+	local formatting = ""
+	for k, v in ipairs(priv.index) do
+		formatting = formatting .. (v:find("%s") and '["%s"]' or ".%s"):format(v) --[[@as string]]
 
-		if i == priv.validDepth then
+		if k == priv.validDepth then
 			formatting = formatting .. "§c§n"
 		end
 	end
-	formatting = formatting .. "§c"
+	formatting = "§7" .. formatting:gsub("^%.", "") .. "§c"
 
 	local err =
 	'ModelPart path is incorrect. "%s" is not a child of "%s". Please check spelling and capitalization \n\n%s§o<--[Here]§c\n\n%s\nscript:\n  %s\n\n(Below contains additional information)'
 
-	error(err:format(priv.index[priv.validDepth + 1], priv.index[priv.validDepth], formatting, priv.stack, priv.script), 3)
+	error(err:format(
+		priv.index[priv.validDepth + 1],
+		priv.index[priv.validDepth],
+		formatting,
+		priv.stack,
+		priv.script
+	), 3)
 end
 
 ---@class ModelPart

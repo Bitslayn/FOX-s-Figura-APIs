@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Filters API v1.0
+FOX's Filters API v1.1
 
 Github: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/Filters.lua
 Wiki: https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI
@@ -24,6 +24,8 @@ end
 
 ---Applies a texture filter to an area of pixels. The filter can be created by calling `<FOXFilterAPI>.newFilter()` after requiring FOXFilters.
 ---
+---Another filter can be used as a mask. **APPLYING MASKS ARE INSTRUCTION HEAVY**
+---
 ---It is recommended to call `<Texture>:update()` after doing anything with textures.
 ---
 ---https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI#getting-started
@@ -32,15 +34,32 @@ end
 ---@param w integer
 ---@param h integer
 ---@param filter FOXFilter
+---@param mask FOXFilter?
 ---@return self
-function Texture:applyFilter(x, y, w, h, filter)
-	for _, m in ipairs(filter[1]) do
-		local val = m.val
+function Texture:applyFilter(x, y, w, h, filter, mask)
+	if mask and mask[1][1] then
+		local bytes = self:save()
+		local FOX_filter_tex = textures:read("FOX_filter_tex", bytes)
+			:applyFilter(x, y, w, h, filter)
+		local FOX_mask_tex = textures:read("FOX_mask_tex", bytes)
+			:applyFilter(x, y, w, h, mask)
 
-		if type(val) == "Matrix4" then
-			pcall(self.applyMatrix, self, x, y, w, h, val, true) -- Clip is true here for 1.21
-		elseif type(val) == "function" then
-			pcall(self.applyFunc, self, x, y, w, h, val)
+		self:applyFunc(x, y, w, h, function(_, _x, _y)
+			return math.lerp(
+				self:getPixel(_x, _y),
+				FOX_filter_tex:getPixel(_x, _y),
+				FOX_mask_tex:getPixel(_x, _y)
+			) --[[@as Vector4]]
+		end)
+	else
+		for _, m in ipairs(filter[1]) do
+			local val = m.val
+
+			if type(val) == "Matrix4" then
+				self:applyMatrix(x, y, w, h, val, true) -- Clip is true here for 1.21
+			elseif type(val) == "function" then
+				self:applyFunc(x, y, w, h, val)
+			end
 		end
 	end
 
@@ -54,13 +73,15 @@ end
 ---@class FOXFilter
 ---@field package [1] FOXFilter.Modifier[]
 local Filter = {}
----@package
-Filter.__index = Filter
----@package
-Filter.__type = "FOXFilter"
+local Filter_meta = {
+	__index = Filter,
+	__type = "FOXFilter",
+}
+
+---@alias FOXFilter.Function fun(col: Vector4?, x: integer?, y: integer?): Vector4?
 
 ---@class FOXFilter.Modifier
----@field val fun(col: Vector4?, x: integer?, y: integer?): Vector4?|Matrix4
+---@field val FOXFilter.Function|Matrix4
 ---@field mul boolean
 
 ---Applies a matrix transformation to this filter.
@@ -89,7 +110,7 @@ end
 ---This function is given the color and pixel position for each pixel.
 ---
 ---https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI#function
----@param func fun(col: Vector4?, x: integer?, y: integer?): Vector4?
+---@param func FOXFilter.Function
 ---@return self
 function Filter:applyFunction(func)
 	table.insert(self[1], { val = func, mul = false })
@@ -216,7 +237,8 @@ end
 ---@param val number
 ---@return self
 function Filter:gamma(val)
-	val = val or 1
+	if not val then return self end
+
 	val = 1 / val
 
 	return self:applyFunction(function(col)
@@ -332,7 +354,9 @@ end
 ---@param count number
 ---@return self
 function Filter:limit(count)
-	count = math.clamp(count or 2, 2, 256)
+	if not count then return self end
+
+	count = math.clamp(count, 2, 256)
 	count = math.floor(count - 1)
 
 	return self:applyFunction(function(col)
@@ -420,7 +444,7 @@ local api = setmetatable({}, { __type = "FOXFiltersAPI" })
 ---https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI#getting-started
 ---@return FOXFilter
 function api.newFilter()
-	return setmetatable({ {} }, Filter)
+	return setmetatable({ {} }, Filter_meta)
 end
 
 return api

@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Filters API v1.1
+FOX's Filters API v1.1b
 
 Github: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/Filters.lua
 Wiki: https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI
@@ -24,9 +24,9 @@ end
 
 ---Applies a texture filter to an area of pixels. The filter can be created by calling `<FOXFilterAPI>.newFilter()` after requiring FOXFilters.
 ---
----Another filter can be used as a mask. **APPLYING MASKS ARE INSTRUCTION HEAVY**
----
 ---It is recommended to call `<Texture>:update()` after doing anything with textures.
+---
+---Another filter can be used as a mask. **APPLYING MASKS ARE INSTRUCTION HEAVY**
 ---
 ---https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI#getting-started
 ---@param x integer
@@ -37,7 +37,7 @@ end
 ---@param mask FOXFilter?
 ---@return self
 function Texture:applyFilter(x, y, w, h, filter, mask)
-	if mask and mask[1][1] then
+	if mask and mask[1][1] and filter and filter[1][1] then
 		local bytes = self:save()
 		local FOX_filter_tex = textures:read("FOX_filter_tex", bytes)
 			:applyFilter(x, y, w, h, filter)

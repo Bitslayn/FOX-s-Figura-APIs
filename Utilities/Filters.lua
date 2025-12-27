@@ -111,6 +111,12 @@ local function sanitize(flt)
 				unsafe = true
 				new.val[i] = string.dump(b.val --[[@as function]])
 			end
+		elseif b.typ == "ker" then
+			local ker = {}
+			for j = 1, rawlen(b.val) do
+				ker[j] = { table.unpack(b.val) }
+			end
+			new.val[i] = toJson(ker)
 		end
 
 		new.mod[i] = b
@@ -189,6 +195,12 @@ function texture:applyFilter(x, y, w, h, flt, msk)
 				self:applyMatrix(x, y, w, h, val --[[@as Matrix4]], true) -- Clip is true here for 1.21
 			elseif mod.typ == "fun" then
 				self:applyFunc(x, y, w, h, val --[[@as FOXFilter.Function]])
+			elseif mod.typ == "ker" then
+				local _tmp = textures:read("_tmp", self:save())
+
+				self:applyFunc(x, y, w, h, function(col, u, v)
+					-- TODO Write convolution function
+				end)
 			end
 		end
 	end
@@ -222,6 +234,21 @@ function filter:applyMatrix(mat, mul)
 		table.insert(prv.mod, { typ = "mat", val = mat, mul = mul or false })
 		table.insert(prv.val, tostring(mat))
 	end
+
+	prv.hsh = table.concat(prv.val)
+	return self
+end
+
+---Applies a kernel convolution matrix to this filter.
+---
+---https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI#kernel
+function filter:applyKernel(ker, mode)
+	-- TODO Check and error if kernel contains even indexes or holes.	
+
+	local prv = self[1]
+
+	table.insert(prv.mod, { typ = "ker", val = ker })
+	table.insert(prv.val, toJson(ker))
 
 	prv.hsh = table.concat(prv.val)
 	return self

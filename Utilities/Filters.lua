@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Filters API v1.3b
+FOX's Filters API v1.3c
 
 Github: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/Filters.lua
 Wiki: https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI
@@ -499,12 +499,12 @@ end
 function filter:opacity(val)
 	val = math.clamp(val or 1, 0, 1)
 
-	return self:applyMatrix(math.lerp(matrices.mat4(
+	return self:applyMatrix(matrices.mat4(
 		vec(1, 0, 0, 0),
 		vec(0, 1, 0, 0),
 		vec(0, 0, 1, 0),
 		vec(0, 0, 0, val)
-	), matrices.mat4(), val) --[[@as Matrix4]], true)
+	), true)
 end
 
 ---Inverts this filter.
@@ -635,15 +635,14 @@ function filter:edge(val)
 
 	val = math.max(val or 0, 0)
 
-	return self:applyKernel(math.lerp(matrices.mat3(
-		vec(0, 0, 0),
-		vec(0, 1, 0),
-		vec(0, 0, 0)
-	), matrices.mat3(
-		vec(-1, -1, -1),
-		vec(-1, 8, -1),
-		vec(-1, -1, -1)
-	), val) --[[@as Matrix3]])
+	local a = math.lerp(1, 8, val)
+	local b = math.lerp(0, -1, val)
+
+	return self:applyKernel({
+		{ b, b, b },
+		{ b, a, b },
+		{ b, b, b },
+	})
 end
 
 ---Applies a sharpen modifier to this filter. **THIS MODIFIER IS INSTRUCTION HEAVY**
@@ -656,15 +655,14 @@ function filter:sharpen(val)
 
 	val = math.max(val or 0, 0)
 
-	return self:applyKernel(math.lerp(matrices.mat3(
-		vec(0, 0, 0),
-		vec(0, 1, 0),
-		vec(0, 0, 0)
-	), matrices.mat3(
-		vec(0, -1, 0),
-		vec(-1, 5, -1),
-		vec(0, -1, 0)
-	), val) --[[@as Matrix3]])
+	local a = math.lerp(1, 5, val)
+	local b = math.lerp(0, -1, val)
+
+	return self:applyKernel({
+		{ 0, b, 0 },
+		{ b, a, b },
+		{ 0, b, 0 },
+	})
 end
 
 ---Applies a gaussian blur modifier to this filter. **THIS MODIFIER IS INSTRUCTION HEAVY**

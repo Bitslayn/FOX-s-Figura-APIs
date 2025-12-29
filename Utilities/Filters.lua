@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Filters API v1.3c
+FOX's Filters API v1.3d
 
 Github: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/Filters.lua
 Wiki: https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI
@@ -678,32 +678,29 @@ function filter:blur(rad)
 	local sig = 0.3 * ((rad - 1) * 0.5 - 1) + 0.8
 	local sig2 = 2 * sig * sig
 
-	local ker = {}
+	local hor = { {} }
+	local ver = {}
 	local sum = 0
 
-	-- Calculate gaussian blur kernel
+	-- Calculate gaussian blur kernels
 
 	for r = 1, rad * 2 - 1 do
-		ker[r] = {}
-		for c = 1, rad * 2 - 1 do
-			local x = c - rad
-			local y = r - rad
+		local x = r - rad
 
-			local v = math.exp(-(x * x + y * y) / sig2)
-			ker[r][c] = v
-			sum = sum + v
-		end
+		local v = math.exp(-(x * x) / sig2)
+		hor[1][r] = v
+		ver[r] = { v }
+		sum = sum + v
 	end
 
-	-- Normalize kernel
+	-- Normalize kernels
 
-	for r = 1, #ker do
-		for c = 1, #ker[r] do
-			ker[r][c] = ker[r][c] / sum
-		end
+	for r = 1, #hor[1] do
+		hor[1][r] = hor[1][r] / sum
+		ver[r][1] = ver[r][1] / sum
 	end
 
-	return self:applyKernel(ker)
+	return self:applyKernel(hor):applyKernel(ver)
 end
 
 --#ENDREGION --=================================================================================================================

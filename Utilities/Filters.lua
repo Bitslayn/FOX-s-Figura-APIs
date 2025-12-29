@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Filters API v1.3
+FOX's Filters API v1.3b
 
 Github: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/Filters.lua
 Wiki: https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI
@@ -172,13 +172,25 @@ function texture:applyFilter(x, y, w, h, flt, msk)
 		local _flt = textures:read("_flt", byt):applyFilter(x, y, w, h, flt)
 		local _msk = textures:read("_msk", byt):applyFilter(x, y, w, h, msk)
 
-		self:applyFunc(x, y, w, h, function(_, _x, _y)
-			return math.lerp(
-				self:getPixel(_x, _y),
-				_flt:getPixel(_x, _y),
-				_msk:getPixel(_x, _y)
-			) --[[@as Vector4]]
-		end)
+		---@diagnostic disable-next-line: undefined-field
+		if _flt.invert then -- Figura 0.1.6+
+			---@diagnostic disable-next-line: undefined-field
+			_flt:multiply(_msk, x, y, w, h)
+			---@diagnostic disable-next-line: undefined-field
+			_msk:invert(x, y, w, h)
+
+			---@diagnostic disable-next-line: undefined-field
+			self:multiply(_msk, x, y, w, h)
+				:add(_flt, x, y, w, h)
+		else -- Figura <0.1.6
+			self:applyFunc(x, y, w, h, function(_, _x, _y)
+				return math.lerp(
+					self:getPixel(_x, _y),
+					_flt:getPixel(_x, _y),
+					_msk:getPixel(_x, _y)
+				) --[[@as Vector4]]
+			end)
+		end
 	else
 		-- Apply filter
 
@@ -194,8 +206,8 @@ function texture:applyFilter(x, y, w, h, flt, msk)
 
 				-- Apply kernel to texture
 
-				local r_len = #val
-				local c_len = #val[1]
+				local r_len = #val --[[@as number[][] ]]
+				local c_len = #val --[[@as number[][] ]][1]
 				local r_off = math.ceil(r_len / 2)
 				local c_off = math.ceil(c_len / 2)
 
@@ -213,7 +225,7 @@ function texture:applyFilter(x, y, w, h, flt, msk)
 						local c = _u - u + c_off
 						local r = _v - v + r_off
 
-						sum = val[r][c] * _col.xyz + sum
+						sum = val --[[@as number[][] ]][r][c] * _col.xyz + sum
 					end)
 
 					return sum:augmented(col.w):applyFunc(function(vtx)

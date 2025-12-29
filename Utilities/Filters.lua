@@ -3,35 +3,15 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Filters API v1.2
+FOX's Filters API v1.3
 
 Github: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/Filters.lua
 Wiki: https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI
 ]]
 
 --==============================================================================================================================
---#REGION ˚♡ Metatables ♡˚
+--#REGION ˚♡ Class ♡˚
 --==============================================================================================================================
-
-------------------------------------------------------------------------------------------------
---#REGION ˚♡ Metatables > UserData ♡˚
-------------------------------------------------------------------------------------------------
-
----@class Texture
-local texture = {}
-
-local __meta = figuraMetatables.Texture
-local __index = __meta.__index
-function __meta.__index(s, k)
-	return texture[k] or __index(s, k)
-end
-
-figuraMetatables.Vector4.__metatable = false
-figuraMetatables.Matrix4.__metatable = false
-
---#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ Metatables > FOXFilter ♡˚
-------------------------------------------------------------------------------------------------
 
 ---@class FOXFilter.Private
 ---@field mod FOXFilter.Modifier[] All applied modifiers
@@ -55,18 +35,12 @@ local filter_meta = {
 ---@alias FOXFilter.Function fun(col: Vector4?, x: integer?, y: integer?): Vector4?
 
 ---@class FOXFilter.Modifier
----@field typ "mat"|"fun" This modifier's type
----@field val FOXFilter.Function|Matrix4 This modifier's value
+---@field typ "mat"|"fun"|"ker" This modifier's type
+---@field val Matrix4|FOXFilter.Function|number[][] This modifier's value
 ---@field mul boolean? If this modifier is mergable
-
---#ENDREGION -----------------------------------------------------------------------------------
---#REGION ˚♡ Metatables > FOXFiltersAPI ♡˚
-------------------------------------------------------------------------------------------------
 
 ---@class FOXFiltersAPI
 local api = setmetatable({}, { __type = "FOXFiltersAPI" })
-
---#ENDREGION
 
 --#ENDREGION --=================================================================================================================
 --#REGION ˚♡ Copy ♡˚
@@ -113,9 +87,12 @@ local function sanitize(flt)
 			end
 		elseif b.typ == "ker" then
 			local ker = {}
-			for j = 1, rawlen(b.val) do
-				ker[j] = { table.unpack(b.val) }
+			local len = 0
+			for j = 1, rawlen(b.val --[[@as number[][] ]]) do
+				ker[j] = { table.unpack(rawget(b.val --[[@as number[][] ]], j) --[[@as number[] ]]) }
+				len = len + #ker[j]
 			end
+			unsafe = unsafe or len > 9
 			new.val[i] = toJson(ker)
 		end
 
@@ -142,8 +119,20 @@ filter.copy = copy
 api.copy = copy
 
 --#ENDREGION --=================================================================================================================
---#REGION ˚♡ Texture ♡˚
+--#REGION ˚♡ Figura ♡˚
 --==============================================================================================================================
+
+---@class Texture
+local texture = {}
+
+local __meta = figuraMetatables.Texture
+local __index = __meta.__index
+function __meta.__index(s, k)
+	return texture[k] or __index(s, k)
+end
+
+figuraMetatables.Vector4.__metatable = false
+figuraMetatables.Matrix4.__metatable = false
 
 ---Caches copies of known safe filters
 ---@type table<string, FOXFilter>
@@ -164,21 +153,24 @@ local cache = {}
 ---@param msk FOXFilter?
 ---@return self
 function texture:applyFilter(x, y, w, h, flt, msk)
+	-- Sanitize filters being applied
+
 	if flt and flt[1] then
 		flt = cache[flt[1].hsh] or copy(flt)
 		cache[flt[1].hsh] = flt
 	end
+
 	if msk and msk[1] then
 		msk = cache[msk[1].hsh] or copy(msk)
 		cache[msk[1].hsh] = msk
 	end
 
 	if msk and msk[1].mod[1] and flt and flt[1].mod[1] then
+		-- Apply filter + mask
+
 		local byt = self:save()
-		local _flt = textures:read("_flt", byt)
-			:applyFilter(x, y, w, h, flt)
-		local _msk = textures:read("_msk", byt)
-			:applyFilter(x, y, w, h, msk)
+		local _flt = textures:read("_flt", byt):applyFilter(x, y, w, h, flt)
+		local _msk = textures:read("_msk", byt):applyFilter(x, y, w, h, msk)
 
 		self:applyFunc(x, y, w, h, function(_, _x, _y)
 			return math.lerp(
@@ -188,18 +180,45 @@ function texture:applyFilter(x, y, w, h, flt, msk)
 			) --[[@as Vector4]]
 		end)
 	else
+		-- Apply filter
+
 		for _, mod in ipairs(flt[1].mod) do
 			local val = mod.val
 
 			if mod.typ == "mat" then
-				self:applyMatrix(x, y, w, h, val --[[@as Matrix4]], true) -- Clip is true here for 1.21
+				self:applyMatrix(x, y, w, h, val --[[@as Matrix4]], true) -- Clip here for 1.21+
 			elseif mod.typ == "fun" then
 				self:applyFunc(x, y, w, h, val --[[@as FOXFilter.Function]])
 			elseif mod.typ == "ker" then
 				local _tmp = textures:read("_tmp", self:save())
 
+				-- Apply kernel to texture
+
+				local r_len = #val
+				local c_len = #val[1]
+				local r_off = math.ceil(r_len / 2)
+				local c_off = math.ceil(c_len / 2)
+
 				self:applyFunc(x, y, w, h, function(col, u, v)
-					-- TODO Write convolution function
+					local sum = vec(0, 0, 0)
+
+					-- Apply kernel to pixel
+
+					local x_max = math.max(0, u - c_off + 1)
+					local y_max = math.max(0, v - r_off + 1)
+					local x_min = math.min(w, u + c_len - c_off + 1)
+					local y_min = math.min(h, v + r_len - r_off + 1)
+
+					_tmp:applyFunc(x_max, y_max, x_min - x_max, y_min - y_max, function(_col, _u, _v)
+						local c = _u - u + c_off
+						local r = _v - v + r_off
+
+						sum = val[r][c] * _col.xyz + sum
+					end)
+
+					return sum:augmented(col.w):applyFunc(function(vtx)
+						return math.clamp(vtx, 0, 1) -- Clip here for 1.21+
+					end)
 				end)
 			end
 		end
@@ -242,10 +261,18 @@ end
 ---Applies a kernel convolution matrix to this filter.
 ---
 ---https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI#kernel
-function filter:applyKernel(ker, mode)
-	-- TODO Check and error if kernel contains even indexes or holes.	
-
+---@param ker Matrix3|number[][]
+---@return self
+function filter:applyKernel(ker)
 	local prv = self[1]
+
+	if type(ker) == "Matrix3" then
+		local out = {}
+		for r = 1, 3 do
+			out[r] = { ker[r]:unpack() }
+		end
+		ker = out
+	end
 
 	table.insert(prv.mod, { typ = "ker", val = ker })
 	table.insert(prv.val, toJson(ker))
@@ -257,6 +284,8 @@ end
 ---Applies a function to this filter.
 ---
 ---This function is given the color and pixel position for each pixel.
+---
+---Be sure to clamp returned vector indices to `0..1`.
 ---
 ---https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI#function
 ---@param fun FOXFilter.Function
@@ -311,15 +340,15 @@ end
 ---Applies a color gradient to a grayscale texture, blending two to four colors. The first color is applied first to dark pixels.
 ---
 ---https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI#gradient
----@param col1 Vector3
----@param col2 Vector3
----@param col3 Vector3?
----@param col4 Vector3?
+---@param col_a Vector3
+---@param col_b Vector3
+---@param col_c Vector3?
+---@param col_d Vector3?
 ---@return self
----@overload fun(self: FOXFilter, col1: Vector3, col2: Vector3): FOXFilter
----@overload fun(self: FOXFilter, col1: Vector3, col2: Vector3, col3: Vector3?): FOXFilter
-function filter:gradient(col1, col2, col3, col4)
-	if col4 then
+---@overload fun(self: FOXFilter, col_a: Vector3, col_b: Vector3): FOXFilter
+---@overload fun(self: FOXFilter, col_a: Vector3, col_b: Vector3, col_c: Vector3?): FOXFilter
+function filter:gradient(col_a, col_b, col_c, col_d)
+	if col_d then
 		self:applyMatrix(matrices.mat4(
 			vec(3, 3, -3, 0),
 			vec(0, 0, 0, 0),
@@ -328,17 +357,17 @@ function filter:gradient(col1, col2, col3, col4)
 		), false)
 
 		self:applyMatrix(matrices.mat4(
-			col3:augmented(1.01),
-			col2:augmented(1.01),
-			col1:augmented(1.01),
-			col4:augmented(1.01)
+			col_c:augmented(1.01),
+			col_b:augmented(1.01),
+			col_a:augmented(1.01),
+			col_d:augmented(1.01)
 		) * matrices.mat4(
 			vec(1, -1, 0, 0),
 			vec(-1, 0, 0, 1),
 			vec(0, -1, 1, 0),
 			vec(0, 1, 0, 0)
 		), false)
-	elseif col3 then
+	elseif col_c then
 		self:applyMatrix(matrices.mat4(
 			vec(2, 0, -2, 0),
 			vec(0, 0, 0, 0),
@@ -347,9 +376,9 @@ function filter:gradient(col1, col2, col3, col4)
 		), false)
 
 		self:applyMatrix((matrices.mat3(
-			col3,
-			col2,
-			col1
+			col_c,
+			col_b,
+			col_a
 		) * matrices.mat3(
 			vec(1, -1, 0),
 			vec(0, 1, 0),
@@ -357,8 +386,8 @@ function filter:gradient(col1, col2, col3, col4)
 		)):augmented(), false)
 	else
 		self:applyMatrix(matrices.mat3(
-			col2,
-			col1,
+			col_b,
+			col_a,
 			vec(0, 0, 1)
 		):augmented() * matrices.mat4(
 			vec(1, 0, 0, 0),
@@ -527,61 +556,144 @@ end
 ---Applies a sepia modifier to this filter.
 ---
 ---https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI#sepia
----@param scl number
+---@param val number
 ---@return self
-function filter:sepia(scl)
-	scl = math.max(scl or 0, 0)
+function filter:sepia(val)
+	val = math.max(val or 0, 0)
 
 	return self:applyMatrix(math.lerp(matrices.mat4(), matrices.mat3(
 		vec(0.39, 0.349, 0.272),
 		vec(0.769, 0.686, 0.534),
 		vec(0.189, 0.168, 0.131)
-	):augmented(), scl) --[[@as Matrix4]], true)
+	):augmented(), val) --[[@as Matrix4]], true)
 end
 
 ---Applies a red-green colorblindness modifier to this filter.
 ---
 ---https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI#protanopia
----@param scl number
+---@param val number
 ---@return self
-function filter:protanopia(scl)
-	scl = math.max(scl or 0, 0)
+function filter:protanopia(val)
+	val = math.max(val or 0, 0)
 
 	return self:applyMatrix(math.lerp(matrices.mat4(), matrices.mat3(
 		vec(0.567, 0.558, 0),
 		vec(0.433, 0.442, 0.242),
 		vec(0, 0, 0.758)
-	):augmented(), scl) --[[@as Matrix4]], true)
+	):augmented(), val) --[[@as Matrix4]], true)
 end
 
 ---Applies a red-green colorblindness modifier to this filter.
 ---
 ---https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI#deuteranopia
----@param scl number
+---@param val number
 ---@return self
-function filter:deuteranopia(scl)
-	scl = math.max(scl or 0, 0)
+function filter:deuteranopia(val)
+	val = math.max(val or 0, 0)
 
 	return self:applyMatrix(math.lerp(matrices.mat4(), matrices.mat3(
 		vec(0.625, 0.7, 0),
 		vec(0.375, 0.3, 0.3),
 		vec(0, 0, 0.7)
-	):augmented(), scl) --[[@as Matrix4]], true)
+	):augmented(), val) --[[@as Matrix4]], true)
 end
 
 ---Applies a blue-yellow colorblindness modifier to this filter.
 ---
 ---https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI#tritanopia
----@param scl number
+---@param val number
 ---@return self
-function filter:tritanopia(scl)
-	scl = math.max(scl or 0, 0)
+function filter:tritanopia(val)
+	val = math.max(val or 0, 0)
 
 	return self:applyMatrix(math.lerp(matrices.mat4(), matrices.mat3(
 		vec(0.95, 0, 0),
 		vec(0.05, 0.433, 0.475),
 		vec(0, 0.567, 0.525)
-	):augmented(), scl) --[[@as Matrix4]], true)
+	):augmented(), val) --[[@as Matrix4]], true)
+end
+
+---Applies an edge detection modifier to this filter. **THIS MODIFIER IS INSTRUCTION HEAVY**
+---
+---https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI#edge
+---@param val number
+---@return self
+function filter:edge(val)
+	if not val then return self end
+
+	val = math.max(val or 0, 0)
+
+	return self:applyKernel(math.lerp(matrices.mat3(
+		vec(0, 0, 0),
+		vec(0, 1, 0),
+		vec(0, 0, 0)
+	), matrices.mat3(
+		vec(-1, -1, -1),
+		vec(-1, 8, -1),
+		vec(-1, -1, -1)
+	), val) --[[@as Matrix3]])
+end
+
+---Applies a sharpen modifier to this filter. **THIS MODIFIER IS INSTRUCTION HEAVY**
+---
+---https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI#sharpen
+---@param val number
+---@return self
+function filter:sharpen(val)
+	if not val then return self end
+
+	val = math.max(val or 0, 0)
+
+	return self:applyKernel(math.lerp(matrices.mat3(
+		vec(0, 0, 0),
+		vec(0, 1, 0),
+		vec(0, 0, 0)
+	), matrices.mat3(
+		vec(0, -1, 0),
+		vec(-1, 5, -1),
+		vec(0, -1, 0)
+	), val) --[[@as Matrix3]])
+end
+
+---Applies a gaussian blur modifier to this filter. **THIS MODIFIER IS INSTRUCTION HEAVY**
+---
+---https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI#blur
+---@param rad integer
+---@return self
+function filter:blur(rad)
+	if not rad then return self end
+
+	rad = math.max(rad or 0, 0) + 1
+
+	local sig = 0.3 * ((rad - 1) * 0.5 - 1) + 0.8
+	local sig2 = 2 * sig * sig
+
+	local ker = {}
+	local sum = 0
+
+	-- Calculate gaussian blur kernel
+
+	for r = 1, rad * 2 - 1 do
+		ker[r] = {}
+		for c = 1, rad * 2 - 1 do
+			local x = c - rad
+			local y = r - rad
+
+			local v = math.exp(-(x * x + y * y) / sig2)
+			ker[r][c] = v
+			sum = sum + v
+		end
+	end
+
+	-- Normalize kernel
+
+	for r = 1, #ker do
+		for c = 1, #ker[r] do
+			ker[r][c] = ker[r][c] / sum
+		end
+	end
+
+	return self:applyKernel(ker)
 end
 
 --#ENDREGION --=================================================================================================================

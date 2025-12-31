@@ -127,6 +127,7 @@ if prompter and validator then
 	avatar:store("lift_acceptor", function(fun)
 		lift.proxy = validator(fun) and fun or lift.proxy
 	end)
+	pcall(prompter)
 end
 
 ---@alias FOXLift.Functions.Position

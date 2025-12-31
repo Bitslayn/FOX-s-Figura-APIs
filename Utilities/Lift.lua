@@ -120,18 +120,29 @@ if prompter then
 	pcall(prompter)
 end
 
+---@alias FOXLift.Functions.Position
+---| fun(self: FOXLift, x: number, y: number, z: number): boolean, ...
+---| fun(self: FOXLift, pos: Vector3): boolean, ...
+---@alias FOXLift.Functions.Velocity
+---| fun(self: FOXLift, x: number, y: number, z: number): boolean, ...
+---| fun(self: FOXLift, vel: Vector3): boolean, ...
+---@alias FOXLift.Functions.Rotation
+---| fun(self: FOXLift, x: number, y: number): boolean, ...
+---| fun(self: FOXLift, rot: Vector2): boolean, ...
+---@alias FOXLift.Functions.Proxy
+---| fun(key: string, vec: Vector2|Vector3, uuid: string)
 ---@class FOXLift
 ---@field enabled boolean Set whether other players can move you
 ---@field maxPos number Set the max pos distance from player
 ---@field maxVel number Set the max velocity length
 ---@field whitelist string[] List of names who are allowed to call your functions
----@field setPos fun(self: FOXLift, x: number, y: number, z: number)|fun(self: FOXLift, pos: Vector3) Sets the host's true position
----@field addPos fun(self: FOXLift, x: number, y: number, z: number)|fun(self: FOXLift, pos: Vector3) Sets the host's position offset from their current position
----@field setVel fun(self: FOXLift, x: number, y: number, z: number)|fun(self: FOXLift, vel: Vector3) Sets the host's true velocity
----@field addVel fun(self: FOXLift, x: number, y: number, z: number)|fun(self: FOXLift, vel: Vector3) Sets the host's velocity offset from their current velocity
----@field setRot fun(self: FOXLift, x: number, y: number)|fun(self: FOXLift, rot: Vector2) Sets the host's true rotation
----@field addRot fun(self: FOXLift, x: number, y: number)|fun(self: FOXLift, rot: Vector2) Sets the host's rotation offset from their current rotation
----@field package proxy fun(key: string, vec: Vector2|Vector3, uuid: string) Shared function which calls host functions
+---@field setPos FOXLift.Functions.Position Sets the host's true position. Returns a callback saying whether this function executed successfully
+---@field addPos FOXLift.Functions.Position Sets the host's position offset from their current position. Returns a callback saying whether this function executed successfully
+---@field setVel FOXLift.Functions.Velocity Sets the host's true velocity. Returns a callback saying whether this function executed successfully
+---@field addVel FOXLift.Functions.Velocity Sets the host's velocity offset from their current velocity. Returns a callback saying whether this function executed successfully
+---@field setRot FOXLift.Functions.Rotation Sets the host's true rotation. Returns a callback saying whether this function executed successfully
+---@field addRot FOXLift.Functions.Rotation Sets the host's rotation offset from their current rotation. Returns a callback saying whether this function executed successfully
+---@field package proxy FOXLift.Functions.Proxy Shared function which calls host functions
 return setmetatable(lift, {
 	---Allow indexing `lift` and calling viewer functions
 	---@param _ FOXLift

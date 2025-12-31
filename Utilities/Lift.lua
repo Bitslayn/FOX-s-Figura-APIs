@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Lift Protocol v1.0c
+FOX's Lift Protocol v1.0d
 
 A unique interactions protocol focusing on security
 Allows for interacting with the host with a whitelist
@@ -85,39 +85,48 @@ local proxy = {
 
 ---@type FOXLift.Functions.Proxy
 function lift.proxy(key, x, y, z, uuid)
-	if not lift.enabled then return end
+	if not lift.enabled then error("Not accepting Lift requests") end
 	local vec = vectors.vec3(x, y, z)
 		:applyFunc(function(i) return i == i and i or 0 end)
+
 	return proxy[key](api, vec, uuid or avatar:getUUID())
 end
 
+-- Validator, called by other avatars on the host system while accepting a function. Validates the function to make sure this came from the viewer. Always visible
+
+---@type function
+local prompted
+avatar:store("lift_validator", function(fun)
+	return fun == prompted
+end)
+
 -- Prompter, called by other avatars on the host system, will prompt sharing proxy to whitelisted avatars. Always visible
 
----Call this function to update whitelists
-function lift.update()
+avatar:store("lift_prompter", function()
 	-- Call all acceptors of whitelisted players, giving them the proxy function
 
 	local plr = world:getPlayers()
-	for i, usr in ipairs(lift.whitelist) do
+	for _, usr in ipairs(lift.whitelist) do
 		local acceptor = plr[usr]
 			and plr[usr]:getUUID() ~= avatar:getUUID()
 			and plr[usr]:getVariable("lift_acceptor")
 
-		pcall(acceptor, function(key, x, y, z)
-			if lift.whitelist[i] ~= usr then return false end
+		prompted = function(key, x, y, z)
 			return lift.proxy(key, x, y, z, plr[usr]:getUUID())
-		end)
+		end
+		pcall(acceptor, prompted)
 	end
-end
+end)
 
-avatar:store("lift_prompter", lift.update)
+-- Acceptor, called by avatars to receive host's proxy function. Visible only to the viewer
 
--- Acceptor, called by host to receive host's proxy function. Visible only to the viewer
-
-local prompter = client.getViewer():getVariable("lift_prompter")
-if prompter then
-	avatar:store("lift_acceptor", function(fun) lift.proxy = fun end)
-	pcall(prompter)
+local viewer = client.getViewer()
+local prompter = viewer:getVariable("lift_prompter")
+local validator = viewer:getVariable("lift_validator")
+if prompter and validator then
+	avatar:store("lift_acceptor", function(fun)
+		lift.proxy = validator(fun) and fun or lift.proxy
+	end)
 end
 
 ---@alias FOXLift.Functions.Position
@@ -160,7 +169,7 @@ return setmetatable(lift, {
 				z = 0
 			end
 
-			return pcall(tbl.proxy, key, x, y, z, nil)
+			pcall(tbl.proxy, key, x, y, z, nil)
 		end
 	end,
 })

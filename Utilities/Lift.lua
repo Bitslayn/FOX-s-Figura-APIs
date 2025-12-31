@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Lift Protocol v1.0b
+FOX's Lift Protocol v1.0c
 
 A unique interactions protocol focusing on security
 Allows for interacting with the host with a whitelist
@@ -98,22 +98,13 @@ function lift.update()
 	-- Call all acceptors of whitelisted players, giving them the proxy function
 
 	local plr = world:getPlayers()
-	for _, usr in ipairs(lift.whitelist) do
+	for i, usr in ipairs(lift.whitelist) do
 		local acceptor = plr[usr]
 			and plr[usr]:getUUID() ~= avatar:getUUID()
 			and plr[usr]:getVariable("lift_acceptor")
 
 		pcall(acceptor, function(key, vec)
-			-- Check if caller is still in whitelist
-
-			local wht
-			for _, _usr in ipairs(lift.whitelist) do
-				if _usr == usr then
-					wht = true
-				end
-			end
-			if not wht then return end
-
+			if lift.whitelist[i] ~= usr then return false end
 			return lift.proxy(key, vec, plr[usr]:getUUID())
 		end)
 	end
@@ -149,7 +140,7 @@ return setmetatable(lift, {
 		---@param tbl FOXLift
 		---@param ... number|Vector2|Vector3
 		return function(tbl, ...)
-			if not host:isHost() then return end
+			if not host:isHost() then return false end
 
 			---@type Vector2|Vector3
 			---@diagnostic disable-next-line: param-type-mismatch, assign-type-mismatch

@@ -170,7 +170,7 @@ return setmetatable(lift, {
 				z = 0
 			end
 
-			pcall(tbl.proxy, key, x, y, z, nil)
+			return pcall(tbl.proxy, key, x, y, z, nil)
 		end
 	end,
 })

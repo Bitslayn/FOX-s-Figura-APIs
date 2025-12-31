@@ -151,8 +151,6 @@ return setmetatable(lift, {
 		---@param tbl FOXLift
 		---@param ... number|Vector2|Vector3
 		return function(tbl, ...)
-			if not host:isHost() then return false end
-
 			---@type Vector2|Vector3
 			---@diagnostic disable-next-line: param-type-mismatch, assign-type-mismatch
 			local vec = type(...):find("Vector") and ... or vectors.vec3(...)

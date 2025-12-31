@@ -167,7 +167,6 @@ return setmetatable(lift, {
 				x, y, z = x:unpack()
 			elseif type(x) == "Vector2" then
 				x, y = x:unpack()
-				z = 0
 			end
 
 			return pcall(tbl.proxy, key, x, y, z, nil)

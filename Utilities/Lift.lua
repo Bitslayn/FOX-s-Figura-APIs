@@ -83,11 +83,11 @@ local proxy = {
 	end,
 }
 
----@param key string
----@param vec Vector2|Vector3
----@param uuid string
-function lift.proxy(key, vec, uuid)
+---@type FOXLift.Functions.Proxy
+function lift.proxy(key, x, y, z, uuid)
 	if not lift.enabled then return end
+	local vec = vectors.vec3(x, y, z)
+		:applyFunc(function(i) return i == i and i or 0 end)
 	return proxy[key](api, vec, uuid or avatar:getUUID())
 end
 
@@ -103,9 +103,9 @@ function lift.update()
 			and plr[usr]:getUUID() ~= avatar:getUUID()
 			and plr[usr]:getVariable("lift_acceptor")
 
-		pcall(acceptor, function(key, vec)
+		pcall(acceptor, function(key, x, y, z)
 			if lift.whitelist[i] ~= usr then return false end
-			return lift.proxy(key, vec, plr[usr]:getUUID())
+			return lift.proxy(key, x, y, z, plr[usr]:getUUID())
 		end)
 	end
 end
@@ -130,7 +130,7 @@ end
 ---| fun(self: FOXLift, x: number, y: number): boolean, ...
 ---| fun(self: FOXLift, rot: Vector2): boolean, ...
 ---@alias FOXLift.Functions.Proxy
----| fun(key: string, vec: Vector2|Vector3, uuid: string)
+---| fun(key: string, x: number, y: number, z: number, uuid: string)
 ---@class FOXLift
 ---@field enabled boolean Set whether other players can move you
 ---@field maxPos number Set the max pos distance from player
@@ -149,14 +149,18 @@ return setmetatable(lift, {
 	---@param key string
 	__index = function(_, key)
 		---@param tbl FOXLift
-		---@param ... number|Vector2|Vector3
-		return function(tbl, ...)
-			---@type Vector2|Vector3
-			---@diagnostic disable-next-line: param-type-mismatch, assign-type-mismatch
-			local vec = type(...):find("Vector") and ... or vectors.vec3(...)
-			vec:applyFunc(function(i) return i == i and i or 0 end)
+		---@param x number|Vector2|Vector3
+		---@param y number
+		---@param z number
+		return function(tbl, x, y, z)
+			if type(x) == "Vector3" then
+				x, y, z = x:unpack()
+			elseif type(x) == "Vector2" then
+				x, y = x:unpack()
+				z = 0
+			end
 
-			return pcall(tbl.proxy, key, vec, nil)
+			return pcall(tbl.proxy, key, x, y, z, nil)
 		end
 	end,
 })

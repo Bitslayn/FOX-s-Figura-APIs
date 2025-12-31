@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Lift Protocol v1.0
+FOX's Lift Protocol v1.0b
 
 A unique interactions protocol focusing on security
 Allows for interacting with the host with a whitelist
@@ -11,9 +11,6 @@ Supports Extura, Goofy, or a custom addon
 
 Github: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/Lift.lua
 ]]
-
----List of names who are allowed to call your functions
-local whitelist = { "Steve", "Alex" }
 
 ---@class FOXLift
 local lift = {
@@ -23,6 +20,8 @@ local lift = {
 	maxPos = 10,
 	---Set the max velocity length
 	maxVel = 10,
+	---List of names who are allowed to call your functions
+	whitelist = { "Steve", "Alex" },
 }
 
 -- Define map of functions, and api to use (Goofy, Extura, etc.)
@@ -94,20 +93,33 @@ end
 
 -- Prompter, called by other avatars on the host system, will prompt sharing proxy to whitelisted avatars. Always visible
 
-avatar:store("lift_prompter", function()
+---Call this function to update whitelists
+function lift.update()
 	-- Call all acceptors of whitelisted players, giving them the proxy function
 
 	local plr = world:getPlayers()
-	for _, usr in ipairs(whitelist) do
+	for _, usr in ipairs(lift.whitelist) do
 		local acceptor = plr[usr]
 			and plr[usr]:getUUID() ~= avatar:getUUID()
 			and plr[usr]:getVariable("lift_acceptor")
 
 		pcall(acceptor, function(key, vec)
+			-- Check if caller is still in whitelist
+
+			local wht
+			for _, _usr in ipairs(lift.whitelist) do
+				if _usr == usr then
+					wht = true
+				end
+			end
+			if not wht then return end
+
 			return lift.proxy(key, vec, plr[usr]:getUUID())
 		end)
 	end
-end)
+end
+
+avatar:store("lift_prompter", lift.update)
 
 -- Acceptor, called by host to receive host's proxy function. Visible only to the viewer
 
@@ -121,6 +133,7 @@ end
 ---@field enabled boolean Set whether other players can move you
 ---@field maxPos number Set the max pos distance from player
 ---@field maxVel number Set the max velocity length
+---@field whitelist string[] List of names who are allowed to call your functions
 ---@field setPos fun(self: FOXLift, x: number, y: number, z: number)|fun(self: FOXLift, pos: Vector3) Sets the host's true position
 ---@field addPos fun(self: FOXLift, x: number, y: number, z: number)|fun(self: FOXLift, pos: Vector3) Sets the host's position offset from their current position
 ---@field setVel fun(self: FOXLift, x: number, y: number, z: number)|fun(self: FOXLift, vel: Vector3) Sets the host's true velocity

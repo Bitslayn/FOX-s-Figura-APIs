@@ -1,23 +1,22 @@
---[[@diagnostic disable: undefined-field, undefined-global
+--[[
 ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Lift Protocol v1.0e
+FOX's Lift Protocol v1.1
 
 A unique interactions protocol focusing on security
-Allows for interacting with the host with a whitelist
-Supports Extura, Goofy, or a custom addon
+Allows for moving and interacting with the viewer with a whitelist
+Supports Extura, Goofy, Silly, or a custom addon
 
 Github: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/Lift.lua
 ]]
 
 --==============================================================================================================================
---#REGION ˚♡ API ♡˚
+--#REGION ˚♡ Config ♡˚
 --==============================================================================================================================
 
----@class FOXLift
-local lift = {
+local cfg = {
 	---Set whether other players can move you
 	enabled = true,
 	---List of names who are allowed to call your functions
@@ -34,23 +33,31 @@ local lift = {
 
 -- Define map of functions, and api to use (Goofy, Extura, etc.)
 
-local api = goofy or host
+---@type table
+---@diagnostic disable-next-line: undefined-global
+local api = silly or goofy or host
 local map = {
 	setPos = api.setPos,
 	setRot = api.setRot,
 	setVel = api.setVelocity,
 }
 
----Internal table containing all functions avatars can run
----@type table<string, fun(x: number, y: number, z: number, uuid: string)>
-local proxy_funcs = {
+--#ENDREGION --=================================================================================================================
+--#REGION ˚♡ Proxy ♡˚
+--==============================================================================================================================
+
+---Proxy of all callable functions passed to avatars on the whitelist
+---
+---Do not touch this if you don't know what you're doing! NaN checking and clamping is your responsibility!
+---@type table<string, FOXLift.Proxy>
+local proxy = setmetatable({
 	setPos = function(x, y, z, uuid)
 		local vec = vectors.vec3(x, y, z):applyFunc(function(v)
 			return v == v and v or 0
 		end)
 
 		vec = vec - player:getPos()
-		vec:clampLength(0, lift.maxPos)
+		vec:clampLength(0, cfg.maxPos)
 		vec = vec + player:getPos()
 
 		x, y, z = vec:unpack()
@@ -69,7 +76,7 @@ local proxy_funcs = {
 			return v == v and v or 0
 		end)
 
-		vec:clampLength(0, lift.maxVel)
+		vec:clampLength(0, cfg.maxVel)
 
 		x, y, z = vec:unpack()
 		return map.setVel(api, x, y, z, uuid)
@@ -79,7 +86,7 @@ local proxy_funcs = {
 			return v == v and v or 0
 		end)
 
-		vec:clampLength(0, lift.maxPos)
+		vec:clampLength(0, cfg.maxPos)
 		vec = vec + player:getPos()
 
 		x, y, z = vec:unpack()
@@ -101,72 +108,55 @@ local proxy_funcs = {
 		end)
 
 		vec = vec + vectors.vec3(table.unpack(player:getNbt().Motion))
-		vec:clampLength(0, lift.maxVel)
+		vec:clampLength(0, cfg.maxVel)
 
 		x, y, z = vec:unpack()
 		return map.setVel(api, x, y, z, uuid)
 	end,
-}
+}, {
+	__call = function(self, uuid, usr)
+		return function(key, x, y, z)
+			if not cfg.whitelist[usr] then return end
+			if not cfg.enabled then return end
 
----Returns if the viewer has FOXLift
----@return boolean
-function lift:hasLift()
-	local var = client.getViewer():getVariable("FOXLift")
-	return var and true or false
-end
-
----Returns a config from the viewer by its key
----@param key any
----@return any
-function lift:getConfig(key)
-	local var = client.getViewer():getVariable("FOXLift")
-	return var and (key and var.config[key] or var.config)
-end
-
----Returns if this avatar is whitelisted by the viewer
----@return boolean?
-function lift:isWhitelisted()
-	local cfg = self:getConfig("whitelist")
-	return cfg and cfg[avatar:getName()]
-end
-
----Returns if the viewer has FOXLift enabled
----@return boolean?
-function lift:isEnabled()
-	return self:getConfig("enabled")
-end
+			return self[key](x, y, z, uuid)
+		end
+	end,
+})
 
 --#ENDREGION --=================================================================================================================
 --#REGION ˚♡ Protocol ♡˚
 --==============================================================================================================================
 
 ---@class FOXLift.Protocol
-local lib = { config = lift }
+---@field config FOXLift.Config
+local lib = { config = cfg, version = 1.1 }
 avatar:store("FOXLift", lib)
 
+---Function defined by the viewer when they prompt other avatars
+---
+---Used in validation
 ---@type function
 local prompted
+---Accepted function stored on other avatars when a function has been accepted and validated from the viewer
+---@type function
+local accepted
 
 ---Creates and shares proxy function to all avatars in this avatar's whitelist.
 function lib.prompter()
 	local plr = world:getPlayers()
 
-	for usr in pairs(lift.whitelist) do
-		local var = plr[usr] and plr[usr]:getVariable("FOXLift")
-		local acceptor = var and var.acceptor
+	for usr in pairs(lib.config.whitelist) do
+		local cur = plr[usr]
+		if cur then
+			local var = cur:getVariable("FOXLift")
+			local acceptor = var and var.acceptor
 
-		prompted = function(key, x, y, z)
-			if not lift.whitelist[usr] then return false, "whitelist" end
-			if not lift.enabled then return false, "disabled" end
-			return true, proxy_funcs[key](x, y, z, plr[usr]:getUUID())
+			prompted = proxy(cur:getUUID(), usr)
+			pcall(acceptor, prompted)
 		end
-
-		pcall(acceptor, prompted)
 	end
 end
-
----@type function
-local proxy
 
 ---Receives and stores proxy function.
 function lib.acceptor(fun)
@@ -174,15 +164,13 @@ function lib.acceptor(fun)
 	local validator = var.validator
 
 	local suc, val = pcall(validator, fun)
-	proxy = (suc and val) and fun or proxy
+	accepted = (suc and val) and fun or accepted
 end
 
 ---Validates incoming proxy function to make sure they were made by the viewer.
 function lib.validator(fun)
 	return fun == prompted
 end
-
--- Call viewer prompter on this avatar's init
 
 local var = client.getViewer():getVariable("FOXLift")
 local prompter = var and var.prompter
@@ -192,28 +180,59 @@ pcall(prompter)
 --#REGION ˚♡ Wrapper ♡˚
 --==============================================================================================================================
 
----@alias FOXLift.Functions.Position
----| fun(self: FOXLift, x: number, y: number, z: number): boolean, ...
----| fun(self: FOXLift, pos: Vector3): boolean, ...
----@alias FOXLift.Functions.Velocity
----| fun(self: FOXLift, x: number, y: number, z: number): boolean, ...
----| fun(self: FOXLift, vel: Vector3): boolean, ...
----@alias FOXLift.Functions.Rotation
----| fun(self: FOXLift, x: number, y: number): boolean, ...
----| fun(self: FOXLift, rot: Vector2): boolean, ...
----@alias FOXLift.Functions.Proxy
----| fun(key: string, x: number, y: number, z: number, uuid: string)
----@class FOXLift
+---@class FOXLift.Config
 ---@field enabled boolean Set whether other players can move you
 ---@field whitelist table<string, boolean> List of names who are allowed to call your functions
 ---@field maxPos number Set the max pos distance from player
 ---@field maxVel number Set the max velocity length
----@field setPos FOXLift.Functions.Position Sets the host's true position. Returns a callback saying whether this function executed successfully
----@field addPos FOXLift.Functions.Position Sets the host's position offset from their current position. Returns a callback saying whether this function executed successfully
----@field setVel FOXLift.Functions.Velocity Sets the host's true velocity. Returns a callback saying whether this function executed successfully
----@field addVel FOXLift.Functions.Velocity Sets the host's velocity offset from their current velocity. Returns a callback saying whether this function executed successfully
----@field setRot FOXLift.Functions.Rotation Sets the host's true rotation. Returns a callback saying whether this function executed successfully
----@field addRot FOXLift.Functions.Rotation Sets the host's rotation offset from their current rotation. Returns a callback saying whether this function executed successfully
+---@alias FOXLift.Position
+---| fun(self: FOXLift, x: number, y: number, z: number): boolean, ...
+---| fun(self: FOXLift, pos: Vector3, uuid: string?): boolean, ...
+---@alias FOXLift.Velocity
+---| fun(self: FOXLift, x: number, y: number, z: number): boolean, ...
+---| fun(self: FOXLift, vel: Vector3, uuid: string?): boolean, ...
+---@alias FOXLift.Rotation
+---| fun(self: FOXLift, x: number, y: number): boolean, ...
+---| fun(self: FOXLift, rot: Vector2, uuid: string?): boolean, ...
+---@alias FOXLift.Proxy
+---| fun(key: string, x: number, y: number, z: number, uuid: string): ...
+---@class FOXLift
+---@field config FOXLift.Config
+---@field setPos FOXLift.Position Sets the host's true position. Returns a callback saying whether this function executed successfully
+---@field addPos FOXLift.Position Sets the host's position offset from their current position. Returns a callback saying whether this function executed successfully
+---@field setVel FOXLift.Velocity Sets the host's true velocity. Returns a callback saying whether this function executed successfully
+---@field addVel FOXLift.Velocity Sets the host's velocity offset from their current velocity. Returns a callback saying whether this function executed successfully
+---@field setRot FOXLift.Rotation Sets the host's true rotation. Returns a callback saying whether this function executed successfully
+---@field addRot FOXLift.Rotation Sets the host's rotation offset from their current rotation. Returns a callback saying whether this function executed successfully
+local lift = { config = cfg }
+
+---Returns if the viewer has FOXLift
+---@return boolean
+function lift:hasLift()
+	local _var = client.getViewer():getVariable("FOXLift")
+	return _var and true or false
+end
+
+---Returns a config from the viewer by its key
+---@param key any
+---@return any
+function lift:getConfig(key)
+	local _var = client.getViewer():getVariable("FOXLift")
+	return _var and (key and _var.config[key] or _var.config) or nil
+end
+
+---Returns if this avatar is whitelisted by the viewer
+---@return boolean?
+function lift:isWhitelisted()
+	local _cfg = self:getConfig("whitelist")
+	return _cfg and _cfg[avatar:getName()]
+end
+
+---Returns if the viewer has FOXLift enabled
+---@return boolean?
+function lift:isEnabled()
+	return self:getConfig("enabled")
+end
 
 setmetatable(lift, {
 	---Allow indexing `lift` and calling viewer functions
@@ -222,22 +241,21 @@ setmetatable(lift, {
 	__index = function(_, key)
 		---@param _ FOXLift
 		---@param x number|Vector2|Vector3
-		---@param y number
+		---@param y string|number
 		---@param z number
 		return function(_, x, y, z)
-			if type(x) == "Vector3" then
-				x, y, z = x:unpack()
-			elseif type(x) == "Vector2" then
-				x, y = x:unpack()
+			if type(y) == "string" and client.getViewer():getUUID() ~= y then return end
+
+			if type(x):find("Vector") then
+				x, y, z = x --[[@as Vector.any]]:unpack()
 			end
 
-			local suc, c1, c2 = pcall(proxy, key, x, y, z, nil)
-			return suc and c1, suc and c2 or c1
+			return pcall(accepted, key, x, y, z)
 		end
 	end,
 })
 
-setmetatable(lift.whitelist, {
+setmetatable(cfg.whitelist, {
 	---Allow for adding names to whitelist
 	---@param tbl table
 	---@param key string

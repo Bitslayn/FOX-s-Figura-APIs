@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Lift Protocol v1.1
+FOX's Lift Protocol v1.1b
 
 A unique interactions protocol focusing on security
 Allows for interacting with the viewer with a whitelist
@@ -218,14 +218,15 @@ end
 ---@return any
 function lift:getConfig(key)
 	local _var = client.getViewer():getVariable("FOXLift")
-	return (_var and _var.config) and (key and _var.config[key] or _var.config) or nil
+	local _cfg = _var and _var.config
+	return _cfg and (key and _cfg[key] or _cfg) or nil
 end
 
 ---Returns if this avatar is whitelisted by the viewer
 ---@return boolean?
 function lift:isWhitelisted()
 	local _cfg = self:getConfig("whitelist")
-	return _cfg and _cfg[avatar:getName()]
+	return _cfg and _cfg[avatar:getEntityName()]
 end
 
 ---Returns if the viewer has FOXLift enabled

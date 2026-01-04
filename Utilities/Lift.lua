@@ -6,7 +6,7 @@ ____  ___ __   __
 FOX's Lift Protocol v1.1
 
 A unique interactions protocol focusing on security
-Allows for moving and interacting with the viewer with a whitelist
+Allows for interacting with the viewer with a whitelist
 Supports Extura, Goofy, Silly, or a custom addon
 
 Github: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/Lift.lua
@@ -218,7 +218,7 @@ end
 ---@return any
 function lift:getConfig(key)
 	local _var = client.getViewer():getVariable("FOXLift")
-	return _var and (key and _var.config[key] or _var.config) or nil
+	return (_var and _var.config) and (key and _var.config[key] or _var.config) or nil
 end
 
 ---Returns if this avatar is whitelisted by the viewer

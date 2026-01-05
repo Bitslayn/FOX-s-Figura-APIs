@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Lift Protocol v1.1b
+FOX's Lift Protocol v1.2
 
 A unique interactions protocol focusing on security
 Allows for interacting with the viewer with a whitelist
@@ -156,20 +156,23 @@ function lib.prompter()
 			pcall(acceptor, prompted)
 		end
 	end
+
+	prompted = nil
 end
 
 ---Receives and stores proxy function.
-function lib.acceptor(fun)
+function lib.acceptor()
 	local var = client.getViewer():getVariable("FOXLift")
 	local validator = var.validator
 
-	local suc, val = pcall(validator, fun)
-	accepted = (suc and val) and fun or accepted
+	local suc, fun = pcall(validator)
+	accepted = suc and fun or accepted
+	-- print("Accepted function:", accepted)
 end
 
 ---Validates incoming proxy function to make sure they were made by the viewer.
-function lib.validator(fun)
-	return fun == prompted
+function lib.validator()
+	return prompted
 end
 
 local var = client.getViewer():getVariable("FOXLift")
@@ -251,6 +254,7 @@ setmetatable(lift, {
 				x, y, z = x --[[@as Vector.any]]:unpack()
 			end
 
+			-- print("Defined function:", accepted)
 			return pcall(accepted, key, x, y, z)
 		end
 	end,

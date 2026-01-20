@@ -12,7 +12,7 @@ Github: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/Async.
 local async = {}
 
 ---@class FOXAsync.Task
----@field queue function[]
+---@field queue (fun(...): ...)[]
 ---@field params any[]
 ---@field running boolean
 ---@field event Event|function
@@ -24,7 +24,12 @@ task.__index = task
 ---The given parameters will be passed into the next function
 ---@param ... any
 function async.new(...)
-	local self = { queue = {}, params = { ... }, event = events.tick }
+	local self = {
+		queue = {},
+		params = { ... },
+		running = false,
+		event = events.tick,
+	}
 	return setmetatable(self, task)
 end
 
@@ -55,7 +60,7 @@ end
 ---Adds a new function to an existing async task
 ---
 ---Returning in this function will stop the currently running function, using the returned values as parameters for the next function
----@param func function
+---@param func fun(...): ...
 ---@return FOXAsync.Task
 function task:add(func)
 	table.insert(self.queue, func)

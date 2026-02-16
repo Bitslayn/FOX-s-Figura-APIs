@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Async Utility
+FOX's Async Utility #Patch#
 
 Github: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/Async.lua
 ]]
@@ -38,14 +38,14 @@ end
 local function init(self)
 	if self.running then return end
 
-	local func = table.remove(self.queue)
+	local func = table.remove(self.queue, 1)
 	local params = self.params
 
 	local function run()
 		local returns = { func(table.unpack(params)) }
 		if #returns == 0 then return end
 
-		func = table.remove(self.queue)
+		func = table.remove(self.queue, 1)
 		params = returns
 		if func then return end
 

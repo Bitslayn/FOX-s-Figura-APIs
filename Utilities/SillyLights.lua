@@ -3,19 +3,20 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Silly Lights v1.0c
+FOX's Silly Lights v1.1
 --]]
 
 local lib = {}
 
 ---@alias FOXLight.Light {pos: Vector3, level: integer}
 ---@alias FOXLight.Source {pos: Vector3, level: integer, filled: FOXLight.Light[]}
+---@alias FOXLight.AsyncTask {paused: boolean, finish: fun(...), killed: boolean}
 
 ---Runs a floodfill that places light blocks to set light level
 ---@param pos Vector3
 ---@param level integer
----@return FOXLight.Light[] filled
-local function floodlight(pos, level)
+---@param task FOXLight.AsyncTask
+local function floodlight(pos, level, task)
 	-- Skip floodfill if seeded block can have light set
 
 	local state = world.getBlockState(pos)
@@ -23,9 +24,13 @@ local function floodlight(pos, level)
 	local is_darker = world.getBlockLightLevel(pos) <= level
 
 	if not is_darker then
-		return {}
+		task.paused = false
+		task.finish({})
+		return
 	elseif is_empty or state.id == "minecraft:light" and is_darker then
-		return { { pos = pos, level = level } }
+		task.paused = false
+		task.finish({ { pos = pos, level = level } })
+		return
 	end
 
 	-- Localize vars
@@ -84,8 +89,18 @@ local function floodlight(pos, level)
 		return #queue == 0
 	end
 
-	repeat until fill()
-	return filled
+	local depth = 0
+	local function async()
+		depth = depth + 1
+		if task.killed then
+			events.tick:remove(async)
+		elseif depth > 10 or fill() then
+			events.tick:remove(async)
+			task.paused = false
+			task.finish(filled)
+		end
+	end
+	events.tick:register(async)
 end
 
 ---@type table<string, integer>
@@ -94,6 +109,8 @@ local keys = {}
 local sources = {}
 ---@type table<string, BlockState>
 local placed = {}
+---@type FOXLight.AsyncTask
+local last_task = {}
 
 --Forces light recalculation
 function lib.update()
@@ -129,10 +146,19 @@ function lib.update()
 
 	-- Loop through all sources and propagate light
 
+	local task = { paused = false }
+	last_task.killed = true
+	last_task = task
+
 	local len = #sources
 	local cur = 0
 
 	local function async()
+		if task.killed then
+			events.render:remove(async)
+		end
+		if task.paused then return end
+
 		cur = cur + 1
 
 		local source = sources[cur]
@@ -142,20 +168,23 @@ function lib.update()
 			return
 		end
 
-		local filled = floodlight(source.pos, source.level)
-		for i = 1, #filled do
-			local light = filled[i]
+		task.paused = true
+		task.finish = function(filled)
+			for i = 1, #filled do
+				local light = filled[i]
 
-			local water = tostring(not not world.getBlockState(light.pos):getFluidTags()[1])
-			local state = string.format("minecraft:light[level=%s,waterlogged=%s]", light.level, water)
+				local water = tostring(not not world.getBlockState(light.pos):getFluidTags()[1])
+				local state = string.format("minecraft:light[level=%s,waterlogged=%s]", light.level, water)
 
-			local key = tostring(light.pos)
-			if not queue[key] or tonumber(queue[key].properties.level) < light.level then
-				queue[key] = world.newBlock(state, light.pos)
+				local key = tostring(light.pos)
+				if not queue[key] or tonumber(queue[key].properties.level) < light.level then
+					queue[key] = world.newBlock(state, light.pos)
+				end
 			end
-		end
 
-		source.filled = filled
+			source.filled = filled
+		end
+		floodlight(source.pos, source.level, task)
 	end
 	events.render:register(async)
 end
@@ -185,7 +214,6 @@ function lib.setLight(pos, level)
 
 	-- Double update makes sure light level propagates properly at the cost of flicker
 
-	lib.update()
 	lib.update()
 end
 

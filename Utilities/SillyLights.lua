@@ -212,8 +212,6 @@ function lib.setLight(pos, level)
 		keys[key] = #sources
 	end
 
-	-- Double update makes sure light level propagates properly at the cost of flicker
-
 	lib.update()
 end
 

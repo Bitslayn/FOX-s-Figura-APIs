@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Silly Lights v1.0
+FOX's Silly Lights v1.0b
 --]]
 
 local lib = {}
@@ -18,11 +18,13 @@ local lib = {}
 local function floodlight(pos, level)
 	-- Skip floodfill if seeded block can have light set
 
-	local block = world.getBlockState(pos)
-	local is_empty = block:isAir() or block.id == "minecraft:water"
-	local is_darker = block.id == "minecraft:light" and world.getBlockLightLevel(pos) <= level
+	local state = world.getBlockState(pos)
+	local is_empty = state:isAir() or state.id == "minecraft:water"
+	local is_darker = world.getBlockLightLevel(pos) <= level
 
-	if is_empty or is_darker then
+	if not is_darker then
+		return {}
+	elseif is_empty or state.id == "minecraft:light" and is_darker then
 		return { { pos = pos, level = level } }
 	end
 
@@ -90,24 +92,26 @@ end
 local keys = {}
 ---@type FOXLight.Source[]
 local sources = {}
----@type BlockState[]
+---@type table<string, BlockState>
 local placed = {}
 
 local function update()
-	---@type BlockState[]
+	if not silly then return end
+
+	---@type table<string, BlockState>
 	local queue = {}
 
 	local function replace()
 		-- Remove all placed light blocks
 
-		for i = 1, #placed do
-			silly:setBlock(placed[i]:getPos(), nil)
+		for _, state in pairs(placed) do
+			silly:setBlock(state:getPos(), nil)
 		end
 
 		-- Place queued light blocks
 
-		for i = 1, #placed do
-			silly:setBlock(placed[i])
+		for _, state in pairs(queue) do
+			silly:setBlock(state)
 		end
 
 		placed = queue
@@ -160,7 +164,6 @@ end
 ---@param level integer?
 function lib.setLight(pos, level)
 	if not pos then return end
-	if not silly then return end
 
 	pos = pos:floor()
 	local key = tostring(pos)

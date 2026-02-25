@@ -185,8 +185,8 @@ function lib.setLight(pos, level)
 
 	-- Double update makes sure light level propagates properly at the cost of flicker
 
-	update()
-	update()
+	lib.update()
+	lib.update()
 end
 
 ---Clears all set block lights
@@ -196,7 +196,7 @@ function lib.clearLights()
 		keys[i] = nil
 	end
 
-	update()
+	lib.update()
 end
 
 return lib

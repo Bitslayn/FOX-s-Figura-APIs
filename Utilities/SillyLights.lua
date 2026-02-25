@@ -3,14 +3,14 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Silly Lights v1.1b
+FOX's Silly Lights v1.2
 --]]
 
 local lib = {}
 
 ---@alias FOXLight.Light {pos: Vector3, level: integer}
 ---@alias FOXLight.Source {pos: Vector3, level: integer, filled: FOXLight.Light[]}
----@alias FOXLight.AsyncTask {paused: boolean, finish: fun(...), killed: boolean}
+---@alias FOXLight.AsyncTask {paused: boolean, killed: boolean, finish: fun(...)}
 
 ---Runs a floodfill that places light blocks to set light level
 ---@param pos Vector3
@@ -113,7 +113,10 @@ local placed = {}
 local last_task = {}
 
 --Forces light recalculation
-function lib.update()
+---@param count integer?
+function lib.update(count)
+	count = (count or 1) - 1
+	if count < 0 then return end
 	if not silly then return end
 
 	---@type table<string, BlockState>
@@ -146,6 +149,7 @@ function lib.update()
 
 	-- Loop through all sources and propagate light
 
+	---@type FOXLight.AsyncTask
 	local task = { paused = false }
 	last_task.killed = true
 	last_task = task
@@ -165,6 +169,7 @@ function lib.update()
 		if not source then
 			events.render:remove(async)
 			replace()
+			lib.update(count)
 			return
 		end
 
@@ -212,7 +217,7 @@ function lib.setLight(pos, level)
 		keys[key] = #sources
 	end
 
-	lib.update()
+	lib.update(2)
 end
 
 ---Clears all set block lights

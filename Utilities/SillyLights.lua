@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Silly Lights v1.1
+FOX's Silly Lights v1.1b
 --]]
 
 local lib = {}
@@ -93,14 +93,14 @@ local function floodlight(pos, level, task)
 	local function async()
 		depth = depth + 1
 		if task.killed then
-			events.tick:remove(async)
+			events.render:remove(async)
 		elseif depth > 10 or fill() then
-			events.tick:remove(async)
+			events.render:remove(async)
 			task.paused = false
 			task.finish(filled)
 		end
 	end
-	events.tick:register(async)
+	events.render:register(async)
 end
 
 ---@type table<string, integer>

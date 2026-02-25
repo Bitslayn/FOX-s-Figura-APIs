@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Silly Lights v1.0b
+FOX's Silly Lights v1.0c
 --]]
 
 local lib = {}
@@ -95,7 +95,8 @@ local sources = {}
 ---@type table<string, BlockState>
 local placed = {}
 
-local function update()
+--Forces light recalculation
+function lib.update()
 	if not silly then return end
 
 	---@type table<string, BlockState>

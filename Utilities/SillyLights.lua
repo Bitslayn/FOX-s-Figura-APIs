@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Silly Lights v1.2
+FOX's Silly Lights v1.2b
 --]]
 
 local lib = {}
@@ -160,6 +160,7 @@ function lib.update(count)
 	local function async()
 		if task.killed then
 			events.render:remove(async)
+			return
 		end
 		if task.paused then return end
 

@@ -136,6 +136,7 @@ local proxy = setmetatable({
 -- All you'll need to make Lift's protocol compatible with your wrapper is to provide your own proxy and config.
 -- You can make the prompter do anything as long as lib.prompted stores the proxy as a function. The prompter is host scope.
 -- Modifying what the acceptor does requires a Lift protocol version bump. Avoid touching this as it is viewer scope.
+-- When an avatar calls your lib.prompted, they do so as pcall(lib.prompted, key, x, y, z). You will need a __call metamethod in your proxy.
 
 ---@class FOXLift.Protocol
 ---@field config FOXLift.Config

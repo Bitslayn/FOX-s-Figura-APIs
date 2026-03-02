@@ -144,7 +144,7 @@ avatar:store("FOXLift", lib)
 
 ---Creates and shares proxy function to all avatars in this avatar's whitelist.
 function lib.prompter()
-	local plr = world:getPlayers()
+	local plr = world.getPlayers()
 
 	for usr in pairs(lib.config.whitelist) do
 		local cur = plr[usr]

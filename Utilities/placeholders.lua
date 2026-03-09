@@ -3,8 +3,9 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Custom Placeholders v1.1.2
+FOX's Custom Placeholders v1.1.3
 --]]
+
 --#REGION ˚♡ Metatable store ♡˚
 
 -- Stores important metatable information
@@ -50,20 +51,32 @@ local function applySingleName(name)
 	local self = nameplate[name]
 	local class = nameClasses[self]
 
-	nameIndex[class.index].setText(self, names[class.name]:gsub("%${([%w_]+)}", placeholders[1]))
+	local old = nameIndex[class.index].getText(self)
+	local new = names[class.name]:gsub("%${([%w_]+)}", placeholders[1])
+	if old == new then return end
+
+	nameIndex[class.index].setText(self, new)
 end
 
 local function applyAllNames()
-	for name in pairs(names) do applySingleName(name) end
+	for key in pairs(names) do
+		applySingleName(key)
+	end
 end
 
----@param task TextTask
-local function applySingleTask(task)
-	taskIndex.setText(task, tasks[task]:gsub("%${([%w_]+)}", placeholders[1]))
+---@param self TextTask
+local function applySingleTask(self)
+	local old = taskIndex.getText(self)
+	local new = tasks[self]:gsub("%${([%w_]+)}", placeholders[1])
+	if old == new then return end
+
+	taskIndex.setText(self, new)
 end
 
 local function applyAllTasks()
-	for task in pairs(tasks) do applySingleTask(task) end
+	for key in pairs(tasks) do
+		applySingleTask(key)
+	end
 end
 
 -- Sets a metatable for placeholders table so that it updates all nameplates and text tasks when a placeholder is updated
@@ -87,17 +100,19 @@ setmetatable(placeholders, {
 local nameProxy = {}
 function nameProxy:setText(text)
 	local class = nameClasses[self]
-	local succ, err = pcall(nameIndex[class.index].setText, self, text)
+	local ok, err = pcall(nameIndex[class.index].setText, self, text)
 
 	if class.name == "ALL" then
-		for _, name in ipairs { "CHAT", "ENTITY", "LIST" } do names[name] = text end
+		for _, name in ipairs { "CHAT", "ENTITY", "LIST" } do
+			names[name] = text
+		end
 		applyAllNames()
 	else
 		names[class.name] = text
 		applySingleName(class.name)
 	end
 
-	return succ and self or error(err, 2)
+	return ok and self or error(err, 2)
 end
 
 -- Gets the unmodified nameplate text
@@ -123,14 +138,14 @@ end
 
 local taskProxy = {}
 function taskProxy:setText(text)
-	local succ, err = pcall(taskIndex.setText, self, text)
+	local ok, err = pcall(taskIndex.setText, self, text)
 
-	if succ then
+	if ok then
 		tasks[self] = string.find(text or "", "%$%b{}") and text or nil
 		if tasks[self] then applySingleTask(self) end
 	end
 
-	return succ and self or error(err, 2)
+	return ok and self or error(err, 2)
 end
 
 taskProxy.text = taskProxy.setText

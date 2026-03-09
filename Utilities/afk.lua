@@ -3,17 +3,11 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's AFK Nameplate v1.0.3
+FOX's AFK Nameplate v1.1.0
 
 Requires FOX's Custom Placeholders: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/placeholders.lua
 --]]
 --#REGION ˚♡ Vars ♡˚
-
---[[
-HEY! Everything with a ---@ or -- in front, or inside is an annotation, not actual code. DO NOT MODIFY ANNOTATIONS
-If you want to modify configs in-file, meaning not by requiring this script, you can do so inside the
-config table if you scroll below. Please ask for help if you don't know what you are doing
-]]
 
 --[[Time placeholder cheatsheet
 
@@ -37,20 +31,16 @@ Hours
 ]]
 
 ---@class FOXAFK2
----@field isAFK boolean
----@field isForcedAFK boolean
----@field AFKTime integer
----@field config FOXAFK2.configs
 local afk = {
-	---@class FOXAFK2.configs
-	---@field timeUntilAFK integer
-	---@field active string
-	---@field short string
-	---@field long string
-	---@field altActive string
-	---@field alt string
+
+	------------------------------------------------------
+	-- HEY YOU! This is where you may change your configs!
+	-- This table is returned through the require, so this
+	-- can be modified externally which is best practice!
+	------------------------------------------------------
+
 	config = {
-		-- Amount of time in seconds the player must idle for in order to go AFK
+		-- Amount of time in seconds the player must idle for in order to go AFK. Set this to math.huge to disable the AFK timer altogether.
 		timeUntilAFK = 300,
 
 		-- Recommended to use these with tab list and entity nameplates, and are applied with ${afk}
@@ -59,9 +49,9 @@ local afk = {
 		-- ${afk} text to display when the player ISN'T AFK
 		active = "",
 		-- ${afk} text to display when the player has been AFK for less than an hour
-		short = " [AFK ${m}:${ss}]",
+		short = "\n[AFK ${m}:${ss}]",
 		-- ${afk} text to display when the player has been AFK for over an hour
-		long = " [AFK ${H}:${mm}:${ss}]",
+		long = "\n[AFK ${H}:${mm}:${ss}]",
 
 		-- Recommended for use with chat nameplate. Applied with ${afk_alt}
 
@@ -69,6 +59,16 @@ local afk = {
 		altActive = "",
 		-- ${afk_alt} text to display when the player is AFK
 		alt = " [AFK]",
+
+		-- Auto AFK rules
+		rules = {
+			-- Whether the player should be forced into AFK if the game window goes unfocused
+			focusAutoAfk = true,
+			-- Whether the player should be forced out of AFK when the game window becomes focused
+			focusAutoUnafk = false,
+			-- Whether typing in chat forces the player out of AFK
+			chatAutoUnafk = true,
+		},
 	},
 
 	-- If the user is AFK. They're AFK if `afk.AFKTime` is greater than `afk.config.timeUntilAFK`
@@ -214,25 +214,28 @@ end
 
 local lastTick
 local function run()
-	pcall(function()
-		local thisTick = math.floor(world.getTime() / 5)
-		if lastTick == thisTick then return end
-		lastTick = thisTick
+	local thisTick = math.floor(world.getTime() / 5)
+	if lastTick == thisTick then return end
+	lastTick = thisTick
 
-		if player:isLoaded() then checkAction() end
-		updatePlaceholder()
+	if player:isLoaded() then checkAction() end
+	updatePlaceholder()
 
-		if not host:isHost() then return end
-		if not (client.isWindowFocused() or afk.isAFK) then
-			pings.afk()
-		end
-	end)
+	if not host:isHost() then return end
+	
+	local rules = afk.config.rules
+	if rules.focusAutoAfk and not (client.isWindowFocused() or afk.isAFK) then
+		pings.afk()
+	elseif rules.focusAutoUnafk and client.isWindowFocused() and afk.isAFK then
+		pings.afk(0)
+	elseif rules.chatAutoUnafk and client.isWindowFocused() and host:isChatOpen() and host:getChatText() ~= "" and afk.isAFK then
+		pings.afk(0)
+	end
 end
 
 models:newPart("afk", "Portrait").midRender = run
 events.tick = run
-events.on_play_sound = run
-events.skull_render = run
+events.on_play_sound = function() pcall(run) end
 
 --#ENDREGION
 

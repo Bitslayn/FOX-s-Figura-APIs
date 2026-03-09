@@ -49,9 +49,9 @@ local afk = {
 		-- ${afk} text to display when the player ISN'T AFK
 		active = "",
 		-- ${afk} text to display when the player has been AFK for less than an hour
-		short = "\n[AFK ${m}:${ss}]",
+		short = " [AFK ${m}:${ss}]",
 		-- ${afk} text to display when the player has been AFK for over an hour
-		long = "\n[AFK ${H}:${mm}:${ss}]",
+		long = " [AFK ${H}:${mm}:${ss}]",
 
 		-- Recommended for use with chat nameplate. Applied with ${afk_alt}
 

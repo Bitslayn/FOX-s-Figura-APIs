@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.5.3
+FOX's Camera API v1.5.4
 
 Recommended Goofy Plugin or
 Supports versions of Figura without pre_render, using the built-in compatibility mode
@@ -61,9 +61,9 @@ local function assert(v, message, level)
   return v or error(message or "Assertion failed!", (level or 1) + 1)
 end
 
----@class Camera
+---@type Camera?
 local curr
----@class Camera
+---@type Camera?
 local last
 
 local finalCameraPos
@@ -97,7 +97,7 @@ local CameraAPI = {
 -- isCulled should be checked by looking at if the partToWorldMatrix changes
 
 ---@class Camera
----@field private renderPart ModelPart? A modelpart created when the camera is set. Used for checking if partToWorldMatrix actually returns a matrix
+---@field package renderPart ModelPart? A modelpart created when the camera is set. Used for checking if partToWorldMatrix actually returns a matrix
 ---@field cameraPart ModelPart? The modelpart which the camera will follow. You would usually want this to be a pivot inside your body positioned at eye level
 ---@field hiddenPart ModelPart? The modelpart which will become hidden in first person. You would usually want this to be your head group
 ---@field parentType Camera.parentType? `"PLAYER"` What the camera is following, whether it be a player part or a world part. This should reflect the modelpart parent type
@@ -216,8 +216,8 @@ function CameraAPI.setCamera(camera, lerpTick, easeFunc)
 
   -- Apply the new camera
 
-  curr = camera
   if camera then
+    curr = camera
     -- Edge case type check
 
     assert(
@@ -312,7 +312,7 @@ local function boxcast(pos, direction, dist, scale)
         local startPos = pos + corner
         local endPos = startPos - (direction * dist)
         local _, hitPos = raycast:block(startPos, endPos, "VISUAL")
-        dist = hitPos ~= endPos and (pos - hitPos):length() or dist
+        dist = hitPos ~= endPos and math.min((pos - hitPos):length(), 128) or dist
       end
     end
   end
@@ -392,7 +392,7 @@ if isHost then
   function events.tick()
     if not (curr and doLerp and (curr.doLerpH or curr.doLerpV)) then return end
     oldPos = newPos
-    newPos = math.lerp(newPos, cameraPos, 0.5)
+    newPos = math.lerp(newPos, cameraPos, 0.5) --[[@as Vector3]]
 
     -- Fix for teleporting causing the camera to lerp far away
 
@@ -411,8 +411,8 @@ if isHost then
 
     tLastPos = tNewPos or tOldPos
     tLastRot = tNewRot or tOldRot
-    tNewPos = math.lerp(tOldPos, finalCameraPos, lerp)
-    tNewRot = math.lerp(tOldRot, finalCameraRot, lerp)
+    tNewPos = math.lerp(tOldPos, finalCameraPos, lerp) --[[@as Vector3]]
+    tNewRot = math.lerp(tOldRot, finalCameraRot, lerp) --[[@as Vector3]]
   end
 
   -- Set the visibility of arms
@@ -560,8 +560,8 @@ local function cameraRender(delta)
   if curr.parentType == "PLAYER" then
     if curr.doLerpH or curr.doLerpV then
       local lerp = math.lerp(oldPos, newPos, delta)
-      local lerpPosH = curr.doLerpH and lerp.x_z or cameraPos.x_z
-      local lerpPosV = curr.doLerpV and lerp._y_ or cameraPos._y_
+      local lerpPosH = curr.doLerpH and lerp.x_z or cameraPos.x_z --[[@as Vector3]]
+      local lerpPosV = curr.doLerpV and lerp._y_ or cameraPos._y_ --[[@as Vector3]]
 
       finalCameraPos = lerpPosH:add(lerpPosV):add(playerPos)
     else

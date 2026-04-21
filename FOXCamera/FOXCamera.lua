@@ -522,8 +522,11 @@ local function cameraRender(delta)
     if isHost and curr.doEyeRotation then
       local targeted = targetcast(cameraPos + playerPos, cameraDir)
       if targeted then
-        local lookOffset = player:getLookDir() * (player:getVelocity():length() * 1.1)
-        eyeOffset = targeted:sub(playerPos):sub(eyeHeight):sub(lookOffset)
+        local scalar = player:getVelocity():length() * 1.1
+        local lookOffset = player:getLookDir() * scalar
+        if (scalar ~= 0) then
+          eyeOffset = targeted:sub(playerPos):sub(eyeHeight):sub(lookOffset)
+        end
       end
     end
   end

@@ -3,12 +3,12 @@
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's PlayerScale v2.0.6
+FOX's PlayerScale v2.0.7
 
-Revised 25 December, 2024
+Revised 3 March, 2024
 
 Changelog:
-  Fixed type issues related to the endHeightPivot
+  Fixed trackpad scrolling leading to broken state
 
 --]]
 
@@ -761,14 +761,31 @@ function events.entity_init()
     kattDynCross.setEnabled(currentCameraMode == 2)
   end
 
+
+  ---Calls the provided function every time one full unit is scrolled, passing the direction (1 or -1) of the scroll.
+  ---Accumulates sub-unit scrolls, so if scrolls aren't always integers (i.e. when using a trackpad), users will still be able to scroll through the options.
+  ---@param action Action
+  ---@param callback fun(dir: integer) - called with a value of 1 or -1
+  local function registerIntegerScrollable(action, callback)
+    local acc = 0
+    action:setOnScroll(function(dir)
+      dir = dir + acc
+      local whole = math.floor(dir)
+      acc = dir - whole
+      if whole ~= 0 then
+        callback(whole)
+      end
+    end)
+  end
+
   -- Define scroll
-  function cameraModeAction.scroll(dir)
+  registerIntegerScrollable(cameraModeAction, function(dir)
     -- Scroll through, 1 to 3
     PlayerScale.setCameraMode(((currentCameraMode - 1 - dir) % #cameraModes) + 1)
     -- Play a sound
     sounds:playSound("minecraft:ui.button.click", player:getPos(), 0.2,
       1 + (currentCameraMode * 0.1) - 0.1)
-  end
+  end)
 
   -- #ENDREGION
   -- #REGION Preferred Measurement
@@ -789,7 +806,7 @@ function events.entity_init()
   updatePreferredMeasurementActionTitle()
 
   -- Define scroll
-  function preferredMeasurementAction.scroll(dir)
+  registerIntegerScrollable(preferredMeasurementAction, function(dir)
     -- Scroll through, 1 to 4
     PlayerScale.setPreferredMeasurement(((preferredSystem - 1 - dir) % #measurementSystems) + 1)
     -- Play a sound
@@ -797,7 +814,7 @@ function events.entity_init()
       1 + (preferredSystem * 0.1) - 0.1)
     updateScaleActionTitle()
     updateSaveLoadActionTitle()
-  end
+  end)
 
   -- #ENDREGION
   -- #REGION Back button
@@ -830,14 +847,14 @@ function events.entity_init()
   end
 
   -- Define scroll
-  function saveLoadAction.scroll(dir)
+  registerIntegerScrollable(saveLoadAction, function(dir)
     -- Scroll through, 1 to 4
     saveLoadOption = ((saveLoadOption - 1 - dir) % 3) + 1
     -- Play a sound
     sounds:playSound("minecraft:ui.button.click", player:getPos(), 0.2,
       1 + (saveLoadOption * 0.1) - 0.1)
     updateSaveLoadActionTitle()
-  end
+  end)
 
   -- Define click
   function saveLoadAction.leftClick()
@@ -913,11 +930,11 @@ function events.entity_init()
   updateScaleActionTitle()
 
   -- Define scroll
-  function scaleAction.scroll(dir)
+  registerIntegerScrollable(scaleAction, function(dir)
     multiplier = (scaleMultipliers[preferredSystem] and scaleMultipliers[preferredSystem][modifiers]) and
         scaleMultipliers[preferredSystem][modifiers][1] or 0
     PlayerScale.setScale({ targetHeight + (multiplier * dir) }, true)
-  end
+  end)
 
   -- #ENDREGION
 end

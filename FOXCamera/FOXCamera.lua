@@ -3,9 +3,9 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.5.4
+FOX's Camera API v1.5.5
 
-Recommended Goofy Plugin or
+Recommended Silly Plugin or Extura/Exturaddon
 Supports versions of Figura without pre_render, using the built-in compatibility mode
 
 It is HIGHLY recommended that you install Sumneko's Lua Language Server and GS Figura Docs
@@ -632,7 +632,9 @@ end
 
 -- Determine which event to use, by checking if pre_render exists. Enable compatibility mode if it does not
 
-if isHost and type(events.pre_render --[[@as Event]]) == "Event" then
+local pre_render = events.pre_render or silly and silly.backports.PRE_RENDER
+
+if isHost and pre_render and type(pre_render.register) == "function" then
   events.pre_render:register(cameraRender)
   if not isHost then return end
   -- events.render:register(compatCheck)

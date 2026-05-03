@@ -635,7 +635,7 @@ end
 local pre_render = events.pre_render or silly and silly.backports.PRE_RENDER
 
 if isHost and pre_render and type(pre_render.register) == "function" then
-  events.pre_render:register(cameraRender)
+  pre_render:register(cameraRender)
   if not isHost then return end
   -- events.render:register(compatCheck)
 else

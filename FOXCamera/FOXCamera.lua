@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Camera API v1.5.5
+FOX's Camera API v1.5.6
 
 Recommended Silly Plugin or Extura/Exturaddon
 Supports versions of Figura without pre_render, using the built-in compatibility mode
@@ -32,11 +32,11 @@ local logOnCompat = true -- Set this to false to disable compatibility warnings
 
 ---@type table<Camera.presets, Camera>
 local cameraPresets = {
-  CASUAL = { doEyeOffset = true },
-  CASUAL_FAIR = {},
-  PRO = { doEyeOffset = true, doEyeRotation = true, unlockPos = true, unlockRot = true },
-  PRO_FAIR = { unlockPos = true, unlockRot = true },
-  WORLD = { parentType = "WORLD", unlockRot = true },
+	CASUAL = { doEyeOffset = true },
+	CASUAL_FAIR = {},
+	PRO = { doEyeOffset = true, doEyeRotation = true, unlockPos = true, unlockRot = true },
+	PRO_FAIR = { unlockPos = true, unlockRot = true },
+	WORLD = { parentType = "WORLD", unlockRot = true },
 }
 
 --#ENDREGION
@@ -58,7 +58,7 @@ figuraMetatables.Vector3.__metatable = false
 ---@param level? integer
 ---@return T v
 local function assert(v, message, level)
-  return v or error(message or "Assertion failed!", (level or 1) + 1)
+	return v or error(message or "Assertion failed!", (level or 1) + 1)
 end
 
 ---@type Camera?
@@ -73,7 +73,7 @@ local tOldRot, tLastRot, tNewRot = vec(0, 0, 0), vec(0, 0, 0), vec(0, 0, 0)
 local lerpTimer, lerpTimerEnd = 1, 0
 
 local function easeInOutCubic(x)
-  return x < 0.5 and 4 * x * x * x or 1 - math.pow(-2 * x + 2, 3) / 2
+	return x < 0.5 and 4 * x * x * x or 1 - math.pow(-2 * x + 2, 3) / 2
 end
 
 local lerpFunc = easeInOutCubic
@@ -90,7 +90,7 @@ local firstPersonContext = { OTHER = true, RENDER = true, FIRST_PERSON = true }
 ---@field isRendering boolean? If the active camera modelpart is rendering at all. This is usually the case when in first person with the paper doll disabled. Becomes nil if no camera is applied.
 ---@field isCulled boolean? If the active camera modelpart is culled. This is usually the case when going into F1, or your modelpart is hidden, but can have other reasons. Becomes nil if no camera is applied.
 local CameraAPI = {
-  attributes = {},
+	attributes = {},
 }
 
 -- isRendering should be checked from the midRender event
@@ -139,27 +139,27 @@ local CameraAPI = {
 ---@param offsetSpace Camera.offsetSpace? `"CAMERA"` The space which offsets are applied relative to
 ---@return Camera
 function CameraAPI.newCamera(cameraPart, hiddenPart, parentType, distance, scale, unlockPos,
-                             unlockRot, doCollisions, doEyeOffset, doEyeRotation, doLerpH, doLerpV,
-                             offsetPos, offsetRot, offsetSpace)
-  -- Create, and return a camera table with the given arguments
+							 unlockRot, doCollisions, doEyeOffset, doEyeRotation, doLerpH, doLerpV,
+							 offsetPos, offsetRot, offsetSpace)
+	-- Create, and return a camera table with the given arguments
 
-  return {
-    cameraPart    = cameraPart,
-    hiddenPart    = hiddenPart,
-    parentType    = parentType,
-    distance      = distance,
-    scale         = scale,
-    unlockPos     = unlockPos,
-    unlockRot     = unlockRot,
-    doCollisions  = doCollisions,
-    doEyeOffset   = doEyeOffset,
-    doEyeRotation = doEyeRotation,
-    doLerpH       = doLerpH,
-    doLerpV       = doLerpV,
-    offsetPos     = offsetPos,
-    offsetRot     = offsetRot,
-    offsetSpace   = offsetSpace,
-  }
+	return {
+		cameraPart    = cameraPart,
+		hiddenPart    = hiddenPart,
+		parentType    = parentType,
+		distance      = distance,
+		scale         = scale,
+		unlockPos     = unlockPos,
+		unlockRot     = unlockRot,
+		doCollisions  = doCollisions,
+		doEyeOffset   = doEyeOffset,
+		doEyeRotation = doEyeRotation,
+		doLerpH       = doLerpH,
+		doLerpV       = doLerpV,
+		offsetPos     = offsetPos,
+		offsetRot     = offsetRot,
+		offsetSpace   = offsetSpace,
+	}
 end
 
 ---Generates a new camera from a preset
@@ -168,21 +168,21 @@ end
 ---@param hiddenPart ModelPart? The modelpart which will become hidden in first person. You would usually want this to be your head group
 ---@return Camera
 function CameraAPI.newPresetCamera(preset, cameraPart, hiddenPart)
-  -- Localize the preset, and make sure it exists
+	-- Localize the preset, and make sure it exists
 
-  local pTbl = cameraPresets[preset]
-  assert(pTbl, "Unknown preset to apply to this camera!", 2)
+	local pTbl = cameraPresets[preset]
+	assert(pTbl, "Unknown preset to apply to this camera!", 2)
 
-  -- Create a camera table with the given arguments
+	-- Create a camera table with the given arguments
 
-  local newTbl = { cameraPart = cameraPart, hiddenPart = hiddenPart }
+	local newTbl = { cameraPart = cameraPart, hiddenPart = hiddenPart }
 
-  -- Add the preset's configs to the newly created camera table, and return
+	-- Add the preset's configs to the newly created camera table, and return
 
-  for k, v in pairs(pTbl) do
-    newTbl --[[@as Camera]][k] = v
-  end
-  return newTbl
+	for k, v in pairs(pTbl) do
+		newTbl --[[@as Camera]][k] = v
+	end
+	return newTbl
 end
 
 local cameraRot = vec(0, 0, 0) -- This is here just so I can reset it when the camera changes
@@ -194,93 +194,93 @@ local cameraRot = vec(0, 0, 0) -- This is here just so I can reset it when the c
 ---@param lerpTick number? How many ticks to ease the camera when switching between cameras
 ---@param easeFunc function? The ease function, uses easeInOutCubic if none is defined
 function CameraAPI.setCamera(camera, lerpTick, easeFunc)
-  -- When switching cameras, set the visibility of the last hidden part to visible so it's not stuck being invisible
+	-- When switching cameras, set the visibility of the last hidden part to visible so it's not stuck being invisible
 
-  if curr and curr.hiddenPart then
-    curr.hiddenPart:setVisible(true)
-    curr.cameraPart.preRender = nil
-  end
+	if curr and curr.hiddenPart then
+		curr.hiddenPart:setVisible(true)
+		curr.cameraPart.preRender = nil
+	end
 
-  -- Initiate lerping between cameras
+	-- Initiate lerping between cameras
 
-  if lerpTick then
-    lerpFunc = type(easeFunc) == "function" and easeFunc or easeInOutCubic
-    local succ, res = pcall(lerpFunc, 1)
-    assert(succ and type(res) == "number",
-      "The easing function provided for switching cameras does not return a number!", 2)
-    tOldPos, tOldRot = finalCameraPos, finalCameraRot
-    tLastPos, tLastRot = finalCameraPos, finalCameraRot
-    tNewPos, tNewRot = finalCameraPos, finalCameraRot
-    lerpTimer, lerpTimerEnd = 0, lerpTick
-  end
+	if lerpTick then
+		lerpFunc = type(easeFunc) == "function" and easeFunc or easeInOutCubic
+		local succ, res = pcall(lerpFunc, 1)
+		assert(succ and type(res) == "number",
+			"The easing function provided for switching cameras does not return a number!", 2)
+		tOldPos, tOldRot = finalCameraPos, finalCameraRot
+		tLastPos, tLastRot = finalCameraPos, finalCameraRot
+		tNewPos, tNewRot = finalCameraPos, finalCameraRot
+		lerpTimer, lerpTimerEnd = 0, lerpTick
+	end
 
-  -- Apply the new camera
+	-- Apply the new camera
 
-  if camera then
-    curr = camera
-    -- Edge case type check
+	if camera then
+		curr = camera
+		-- Edge case type check
 
-    assert(
-      type(camera.cameraPart) == "ModelPart",
-      "Unexpected type for cameraPart, expected ModelPart",
-      2
-    )
+		assert(
+			type(camera.cameraPart) == "ModelPart",
+			"Unexpected type for cameraPart, expected ModelPart",
+			2
+		)
 
-    -- Create render part which is meant to check if partToWorldMatrix actually returns a matrix
+		-- Create render part which is meant to check if partToWorldMatrix actually returns a matrix
 
-    curr.renderPart = curr.cameraPart.renderValidator or curr.cameraPart:newPart("renderValidator")
+		curr.renderPart = curr.cameraPart.renderValidator or curr.cameraPart:newPart("renderValidator")
 
-    -- Apply defaults
+		-- Apply defaults
 
-    curr.parentType = curr.parentType or "PLAYER"
-    curr.doCollisions = curr.doCollisions == nil and true or curr.doCollisions
-    curr.scale = curr.scale or 1
-    curr.doLerpH = curr.doLerpH == nil and true or curr.doLerpH
-    curr.doLerpV = curr.doLerpV == nil and true or curr.doLerpV
-    curr.offsetPos = curr.offsetPos or vec(0, 0, 0)
-    curr.offsetRot = curr.offsetRot or vec(0, 0, 0)
-    curr.offsetSpace = curr.offsetSpace or "CAMERA"
+		curr.parentType = curr.parentType or "PLAYER"
+		curr.doCollisions = curr.doCollisions == nil and true or curr.doCollisions
+		curr.scale = curr.scale or 1
+		curr.doLerpH = curr.doLerpH == nil and true or curr.doLerpH
+		curr.doLerpV = curr.doLerpV == nil and true or curr.doLerpV
+		curr.offsetPos = curr.offsetPos or vec(0, 0, 0)
+		curr.offsetRot = curr.offsetRot or vec(0, 0, 0)
+		curr.offsetSpace = curr.offsetSpace or "CAMERA"
 
-    -- Type checks
+		-- Type checks
 
-    assert(
-      curr.parentType == "PLAYER" or curr.parentType == "WORLD",
-      'The parentType must be "PLAYER" or "WORLD"',
-      2
-    )
-    assert(
-      type(curr.scale) == "number",
-      "Unexpected type for scale, expected number",
-      2
-    )
-    assert(
-      curr.offsetSpace == "LOCAL" or curr.offsetSpace == "WORLD" or curr.offsetSpace == "CAMERA",
-      'The offsetSpace must be "LOCAL", "WORLD", or "CAMERA"',
-      2
-    )
+		assert(
+			curr.parentType == "PLAYER" or curr.parentType == "WORLD",
+			'The parentType must be "PLAYER" or "WORLD"',
+			2
+		)
+		assert(
+			type(curr.scale) == "number",
+			"Unexpected type for scale, expected number",
+			2
+		)
+		assert(
+			curr.offsetSpace == "LOCAL" or curr.offsetSpace == "WORLD" or curr.offsetSpace == "CAMERA",
+			'The offsetSpace must be "LOCAL", "WORLD", or "CAMERA"',
+			2
+		)
 
-    -- Reset the camera rotation (Fixes bug with camera rotation from last frame being applied when changing cameras)
+		-- Reset the camera rotation (Fixes bug with camera rotation from last frame being applied when changing cameras)
 
-    cameraRot = vec(0, 0, 0)
+		cameraRot = vec(0, 0, 0)
 
-    curr.cameraPart.preRender = function(delta)
-      CameraAPI.isRendering = true
-      lastRenderCheck = world.getTime(delta)
-    end
+		curr.cameraPart.preRender = function(delta)
+			CameraAPI.isRendering = true
+			lastRenderCheck = world.getTime(delta)
+		end
 
-    CameraAPI.isCulled = true
-    CameraAPI.isRendering = false
-  else
-    -- Disabling the camera
+		CameraAPI.isCulled = true
+		CameraAPI.isRendering = false
+	else
+		-- Disabling the camera
 
-    renderer:cameraPivot():offsetCameraRot():eyeOffset():cameraPos()
-    CameraAPI.isCulled = nil
-    CameraAPI.isRendering = nil
-    last = nil
+		renderer:cameraPivot():offsetCameraRot():eyeOffset():cameraPos()
+		CameraAPI.isCulled = nil
+		CameraAPI.isRendering = nil
+		last = nil
 
-    finalCameraPos = player:getPos():add(0, player:getEyeHeight(), 0)
-    finalCameraRot = vec(0, 0, 0)
-  end
+		finalCameraPos = player:getPos():add(0, player:getEyeHeight(), 0)
+		finalCameraRot = vec(0, 0, 0)
+	end
 end
 
 ---Gets the camera currently active. Useful for changing the configuration of a currently active camera
@@ -288,7 +288,7 @@ end
 ---Returns nil if none is active
 ---@return Camera? camera
 function CameraAPI.getCamera()
-  return curr
+	return curr
 end
 
 --#ENDREGION
@@ -305,23 +305,23 @@ end
 ---@param scale number
 ---@return number
 local function boxcast(pos, direction, dist, scale)
-  for x = -1, 1, 2 do
-    for y = -1, 1, 2 do
-      for z = -1, 1, 2 do
-        local corner = vec(x * scale, y * scale, z * scale)
-        local startPos = pos + corner
-        local endPos = startPos - (direction * dist)
-        local _, hitPos = raycast:block(startPos, endPos, "VISUAL")
-        dist = hitPos ~= endPos and math.min((pos - hitPos):length(), 128) or dist
-      end
-    end
-  end
-  return dist
+	for x = -1, 1, 2 do
+		for y = -1, 1, 2 do
+			for z = -1, 1, 2 do
+				local corner = vec(x * scale, y * scale, z * scale)
+				local startPos = pos + corner
+				local endPos = startPos - (direction * dist)
+				local _, hitPos = raycast:block(startPos, endPos, "VISUAL")
+				dist = hitPos ~= endPos and math.min((pos - hitPos):length(), 128) or dist
+			end
+		end
+	end
+	return dist
 end
 
 -- Used for raycasting an entity that isn't the player
 local function predicate(entity)
-  return entity ~= player
+	return entity ~= player
 end
 
 ---Raycasts from the position in the direction as far as the player's reach.
@@ -329,16 +329,16 @@ end
 ---@param direction Vector3
 ---@return Vector3? hitpos
 local function targetcast(pos, direction)
-  local endPos = pos + (direction * host:getReachDistance())
-  local _, blockPos = raycast:block(pos, endPos, "OUTLINE")
-  local _, entityPos = raycast:entity(pos, endPos, predicate)
+	local endPos = pos + (direction * host:getReachDistance())
+	local _, blockPos = raycast:block(pos, endPos, "OUTLINE")
+	local _, entityPos = raycast:entity(pos, endPos, predicate)
 
-  blockPos = blockPos ~= endPos and blockPos or nil
-  local blockDist = blockPos and (blockPos - pos):length() or nil
-  local entityDist = entityPos and (entityPos - pos):length() or nil
+	blockPos = blockPos ~= endPos and blockPos or nil
+	local blockDist = blockPos and (blockPos - pos):length() or nil
+	local entityDist = entityPos and (entityPos - pos):length() or nil
 
-  return (blockDist and entityDist) and (blockDist < entityDist and blockPos or entityPos) or
-      blockPos or entityPos
+	return (blockDist and entityDist) and (blockDist < entityDist and blockPos or entityPos) or
+		blockPos or entityPos
 end
 
 --#ENDREGION
@@ -347,9 +347,9 @@ end
 -- Store if the camera part is rendering
 
 function events.post_render(delta)
-  if not curr then return end
-  if lastRenderCheck == world.getTime(delta) then return end
-  CameraAPI.isRendering = false
+	if not curr then return end
+	if lastRenderCheck == world.getTime(delta) then return end
+	CameraAPI.isRendering = false
 end
 
 -- Scale attribute
@@ -359,11 +359,11 @@ CameraAPI.attributes.scale = 1
 local scPartA = models:newPart("FOXCamera_scaleA"):setPos(0, 16 / math.playerScale, 0)
 local scPartB = models:newPart("FOXCamera_scaleB")
 function events.tick()
-  CameraAPI.isActive = curr and true or false
-  local scMatA = scPartA:partToWorldMatrix()
-  if scMatA.v11 ~= scMatA.v11 then return end -- NaN check
-  local scMatB = scPartB:partToWorldMatrix()
-  CameraAPI.attributes.scale = scMatA:sub(scMatB):apply():length()
+	CameraAPI.isActive = curr and true or false
+	local scMatA = scPartA:partToWorldMatrix()
+	if scMatA.v11 ~= scMatA.v11 then return end -- NaN check
+	local scMatB = scPartB:partToWorldMatrix()
+	CameraAPI.attributes.scale = scMatA:sub(scMatB):apply():length()
 end
 
 -- Distance attribute
@@ -387,118 +387,118 @@ local cameraOffset = vec(0, 0, 0)
 local lastMat
 
 if isHost then
-  -- Lerps the camera's position for PLAYER cameras
+	-- Lerps the camera's position for PLAYER cameras
 
-  function events.tick()
-    if not (curr and doLerp and (curr.doLerpH or curr.doLerpV)) then return end
-    oldPos = newPos
-    newPos = math.lerp(newPos, cameraPos, 0.5) --[[@as Vector3]]
+	function events.tick()
+		if not (curr and doLerp and (curr.doLerpH or curr.doLerpV)) then return end
+		oldPos = newPos
+		newPos = math.lerp(newPos, cameraPos, 0.5) --[[@as Vector3]]
 
-    -- Fix for teleporting causing the camera to lerp far away
+		-- Fix for teleporting causing the camera to lerp far away
 
-    if (newPos - cameraPos):length() < 5 then return end
-    newPos = cameraPos
-    renderer:cameraPivot()
-  end
+		if (newPos - cameraPos):length() < 5 then return end
+		newPos = cameraPos
+		renderer:cameraPivot()
+	end
 
-  -- Ease when switching cameras
+	-- Ease when switching cameras
 
-  function events.tick()
-    if lerpTimer > lerpTimerEnd then return end
+	function events.tick()
+		if lerpTimer > lerpTimerEnd then return end
 
-    lerpTimer = lerpTimer + 1
-    local lerp = lerpFunc(lerpTimer / lerpTimerEnd)
+		lerpTimer = lerpTimer + 1
+		local lerp = lerpFunc(lerpTimer / lerpTimerEnd)
 
-    tLastPos = tNewPos or tOldPos
-    tLastRot = tNewRot or tOldRot
-    tNewPos = math.lerp(tOldPos, finalCameraPos, lerp) --[[@as Vector3]]
-    tNewRot = math.lerp(tOldRot, finalCameraRot, lerp) --[[@as Vector3]]
-  end
+		tLastPos = tNewPos or tOldPos
+		tLastRot = tNewRot or tOldRot
+		tNewPos = math.lerp(tOldPos, finalCameraPos, lerp) --[[@as Vector3]]
+		tNewRot = math.lerp(tOldRot, finalCameraRot, lerp) --[[@as Vector3]]
+	end
 
-  -- Set the visibility of arms
+	-- Set the visibility of arms
 
-  function events.tick()
-    if not curr then return end
-    local hideArms = nil
-    if curr.parentType == "WORLD" then
-      hideArms = false
-    end
-    renderer:renderLeftArm(hideArms):renderRightArm(hideArms)
-  end
+	function events.tick()
+		if not curr then return end
+		local hideArms = nil
+		if curr.parentType == "WORLD" then
+			hideArms = false
+		end
+		renderer:renderLeftArm(hideArms):renderRightArm(hideArms)
+	end
 
-  -- Sets the visibility of the hidden part, taking into account the position of the camera and the render context
+	-- Sets the visibility of the hidden part, taking into account the position of the camera and the render context
 
-  function events.render(_, context)
-    if not (curr and curr.hiddenPart) then return end
-    local hiddenRadius = 0.5 * curr.scale * CameraAPI.attributes.scale
-    local cameraOffDistance = (lastCameraPos - client:getCameraPos()):length()
-    curr.hiddenPart:setVisible(not firstPersonContext[context] or cameraOffDistance > hiddenRadius)
-  end
+	function events.render(_, context)
+		if not (curr and curr.hiddenPart) then return end
+		local hiddenRadius = 0.5 * curr.scale * CameraAPI.attributes.scale
+		local cameraOffDistance = (lastCameraPos - client:getCameraPos()):length()
+		curr.hiddenPart:setVisible(not firstPersonContext[context] or cameraOffDistance > hiddenRadius)
+	end
 end
 
 -- Gets the partToWorldMatrix of the camera part for the PLAYER camera parent type. Separate from pre_render so there are no lerping
 
 local function postRender(delta)
-  if not player:isLoaded() then return end
-  if not curr then return end
-  doLerp = curr.parentType == "PLAYER"
-  if curr.parentType == "WORLD" then return end
+	if not player:isLoaded() then return end
+	if not curr then return end
+	doLerp = curr.parentType == "PLAYER"
+	if curr.parentType == "WORLD" then return end
 
-  -- Get the part matrix of the camera part
+	-- Get the part matrix of the camera part
 
-  local partMatrix = curr.cameraPart:partToWorldMatrix()
-  if partMatrix.v11 ~= partMatrix.v11 then return end -- NaN check
-  cameraPos = partMatrix:apply()
+	local partMatrix = curr.cameraPart:partToWorldMatrix()
+	if partMatrix.v11 ~= partMatrix.v11 then return end -- NaN check
+	cameraPos = partMatrix:apply()
 
-  -- Get the position from the matrix
+	-- Get the position from the matrix
 
-  local thisMat = curr.renderPart:setPos(math.random()):partToWorldMatrix()
-  CameraAPI.isCulled = thisMat == lastMat or not lastMat
-  lastMat = thisMat
-  if not CameraAPI.isCulled then
-    local localOffset = curr.offsetSpace == "LOCAL" and curr.offsetPos or nil
-    local offsetPos = partMatrix:apply(localOffset):sub(cameraPos)
-    local worldOffset = curr.offsetSpace == "WORLD" and curr.offsetPos or nil
-    local xz = curr.unlockPos and 1 or 0
+	local thisMat = curr.renderPart:setPos(math.random()):partToWorldMatrix()
+	CameraAPI.isCulled = thisMat == lastMat or not lastMat
+	lastMat = thisMat
+	if not CameraAPI.isCulled then
+		local localOffset = curr.offsetSpace == "LOCAL" and curr.offsetPos or nil
+		local offsetPos = partMatrix:apply(localOffset):sub(cameraPos)
+		local worldOffset = curr.offsetSpace == "WORLD" and curr.offsetPos or nil
+		local xz = curr.unlockPos and 1 or 0
 
-    local nbt = player:getNbt()
-    local pehkui = nbt["pehkui:scale_data_types"] and
-        nbt["pehkui:scale_data_types"]["pehkui:base"] and
-        nbt["pehkui:scale_data_types"]["pehkui:base"].scale
+		local nbt = player:getNbt()
+		local pehkui = nbt["pehkui:scale_data_types"] and
+			nbt["pehkui:scale_data_types"]["pehkui:base"] and
+			nbt["pehkui:scale_data_types"]["pehkui:base"].scale
 
-    cameraOffset = ((cameraPos - player:getPos(delta)) * (renderer:isFirstPerson() and pehkui or 1))
-        :mul(xz, 1, xz)
-        :add(offsetPos)
-        :add(worldOffset)
-  end
+		cameraOffset = ((cameraPos - player:getPos(delta)) * (renderer:isFirstPerson() and pehkui or 1))
+			:mul(xz, 1, xz)
+			:add(offsetPos)
+			:add(worldOffset)
+	end
 
-  -- Get the rotation from the matrix
+	-- Get the rotation from the matrix
 
-  local offsetDir = partMatrix:applyDir(0, 0, -1)
+	local offsetDir = partMatrix:applyDir(0, 0, -1)
 
-  if curr.unlockRot then
-    -- The roll is only applied on 1.20.6 and above
-    cameraRot = vec(
-      math.atan2(offsetDir.y, offsetDir.xz:length()),
-      math.atan2(offsetDir.x, offsetDir.z),
-      cameraMatVer and math.atan2(-partMatrix.v21, partMatrix.v22) or 0
-    ):toDeg():mul(-1, -1, 1)
-  else
-    cameraRot = vec(0, 0, 0)
-  end
-  cameraRot:sub(curr.offsetRot)
+	if curr.unlockRot then
+		-- The roll is only applied on 1.20.6 and above
+		cameraRot = vec(
+			math.atan2(offsetDir.y, offsetDir.xz:length()),
+			math.atan2(offsetDir.x, offsetDir.z),
+			cameraMatVer and math.atan2(-partMatrix.v21, partMatrix.v22) or 0
+		):toDeg():mul(-1, -1, 1)
+	else
+		cameraRot = vec(0, 0, 0)
+	end
+	cameraRot:sub(curr.offsetRot)
 
-  -- Apply the camera position based on if the player is crawling
+	-- Apply the camera position based on if the player is crawling
 
-  local isCrawling = player:isGliding() or player:isVisuallySwimming()
-  if isCrawling then
-    -- Use vanilla eye height
-    local vanillaHeight = 0.4 * curr.scale * CameraAPI.attributes.scale
-    cameraPos = cameraOffset.x_z:add(0, vanillaHeight, 0)
-  else
-    -- Use camera part height
-    cameraPos = cameraOffset
-  end
+	local isCrawling = player:isGliding() or player:isVisuallySwimming()
+	if isCrawling then
+		-- Use vanilla eye height
+		local vanillaHeight = 0.4 * curr.scale * CameraAPI.attributes.scale
+		cameraPos = cameraOffset.x_z:add(0, vanillaHeight, 0)
+	else
+		-- Use camera part height
+		cameraPos = cameraOffset
+	end
 end
 
 -- Uses pre_render, or <ModelPart>.preRender if that doesn't exist
@@ -506,112 +506,112 @@ end
 -- local checkPos
 
 local function cameraRender(delta)
-  if not player:isLoaded() then return end
-  if not curr then return end
+	if not player:isLoaded() then return end
+	if not curr then return end
 
-  -- Calculate the eye offset
+	-- Calculate the eye offset
 
-  local playerPos = player:getPos(delta)
-  local cameraDir = client:getCameraDir()
+	local playerPos = player:getPos(delta)
+	local cameraDir = client:getCameraDir()
 
-  local eyeOffset = nil
-  if curr.parentType == "PLAYER" and curr.doEyeOffset then
-    local eyeHeight = vec(0, player:getEyeHeight(), 0)
-    eyeOffset = cameraPos - eyeHeight
+	local eyeOffset = nil
+	if curr.parentType == "PLAYER" and curr.doEyeOffset then
+		local eyeHeight = vec(0, player:getEyeHeight(), 0)
+		eyeOffset = cameraPos - eyeHeight
 
-    if isHost and curr.doEyeRotation then
-      local targeted = targetcast(cameraPos + playerPos, cameraDir)
-      if targeted then
-        local lookOffset = player:getLookDir() * (player:getVelocity():length() * 1.1)
-        eyeOffset = targeted:sub(playerPos):sub(eyeHeight):sub(lookOffset)
-      end
-    end
-  end
+		if isHost and curr.doEyeRotation then
+			local targeted = targetcast(cameraPos + playerPos, cameraDir)
+			if targeted then
+				local lookOffset = player:getLookDir() * (player:getVelocity():length() * 1.1)
+				eyeOffset = targeted:sub(playerPos):sub(eyeHeight):sub(lookOffset)
+			end
+		end
+	end
 
-  avatar:store("eyePos", eyeOffset)
-  renderer:eyeOffset(eyeOffset)
+	avatar:store("eyePos", eyeOffset)
+	renderer:eyeOffset(eyeOffset)
 
-  if not isHost then return end -- Host only camera stuff
+	if not isHost then return end -- Host only camera stuff
 
-  local distAtt = CameraAPI.attributes.cameraDistance
-  local scAtt = CameraAPI.attributes.scale
-  local cameraScale = curr.scale * scAtt
-  local doTLerp = lerpTimer <= lerpTimerEnd
+	local distAtt = CameraAPI.attributes.cameraDistance
+	local scAtt = CameraAPI.attributes.scale
+	local cameraScale = curr.scale * scAtt
+	local doTLerp = lerpTimer <= lerpTimerEnd
 
-  -- Calculate the camera rotation
+	-- Calculate the camera rotation
 
-  if curr.parentType == "WORLD" then
-    cameraPos = curr.cameraPart:getTruePos():add(curr.cameraPart:getTruePivot()):div(16, 16, 16)
-    if curr.unlockRot then
-      cameraRot = curr.cameraPart:getTrueRot():mul(1, -1, 1)
-    end
-  end
+	if curr.parentType == "WORLD" then
+		cameraPos = curr.cameraPart:getTruePos():add(curr.cameraPart:getTruePivot()):div(16, 16, 16)
+		if curr.unlockRot then
+			cameraRot = curr.cameraPart:getTrueRot():mul(1, -1, 1)
+		end
+	end
 
-  -- Offset camera rotation by player rotation if the camera hasn't changed
+	-- Offset camera rotation by player rotation if the camera hasn't changed
 
-  finalCameraRot = cameraRot or vec(0, 0, 0)
-  if curr.unlockRot and last == curr then
-    finalCameraRot = cameraRot - player:getRot(delta).xy_
-  end
-  last = curr
+	finalCameraRot = cameraRot or vec(0, 0, 0)
+	if curr.unlockRot and last == curr then
+		finalCameraRot = cameraRot - player:getRot(delta).xy_
+	end
+	last = curr
 
-  -- Calculate the camera position, and lerp
+	-- Calculate the camera position, and lerp
 
-  if curr.parentType == "PLAYER" then
-    if curr.doLerpH or curr.doLerpV then
-      local lerp = math.lerp(oldPos, newPos, delta)
-      local lerpPosH = curr.doLerpH and lerp.x_z or cameraPos.x_z --[[@as Vector3]]
-      local lerpPosV = curr.doLerpV and lerp._y_ or cameraPos._y_ --[[@as Vector3]]
+	if curr.parentType == "PLAYER" then
+		if curr.doLerpH or curr.doLerpV then
+			local lerp = math.lerp(oldPos, newPos, delta)
+			local lerpPosH = curr.doLerpH and lerp.x_z or cameraPos.x_z --[[@as Vector3]]
+			local lerpPosV = curr.doLerpV and lerp._y_ or cameraPos._y_ --[[@as Vector3]]
 
-      finalCameraPos = lerpPosH:add(lerpPosV):add(playerPos)
-    else
-      finalCameraPos = cameraPos:copy():add(playerPos)
-    end
-  else
-    finalCameraPos = cameraPos:copy():add(curr.offsetPos * curr.scale)
-  end
-  -- checkPos = finalCameraPos
+			finalCameraPos = lerpPosH:add(lerpPosV):add(playerPos)
+		else
+			finalCameraPos = cameraPos:copy():add(playerPos)
+		end
+	else
+		finalCameraPos = cameraPos:copy():add(curr.offsetPos * curr.scale)
+	end
+	-- checkPos = finalCameraPos
 
-  local offsetCameraPos = curr.offsetSpace == "CAMERA" and curr.offsetPos:copy() or vec(0, 0, 0)
+	local offsetCameraPos = curr.offsetSpace == "CAMERA" and curr.offsetPos:copy() or vec(0, 0, 0)
 
-  local lerpedFinalCameraPos = doTLerp and math.lerp(tLastPos, tNewPos, delta) or finalCameraPos
-  local lerpedFinalCameraRot = doTLerp and math.lerp(tLastRot, tNewRot, delta) or finalCameraRot
+	local lerpedFinalCameraPos = doTLerp and math.lerp(tLastPos, tNewPos, delta) or finalCameraPos
+	local lerpedFinalCameraRot = doTLerp and math.lerp(tLastRot, tNewRot, delta) or finalCameraRot
 
-  renderer:cameraPivot(lerpedFinalCameraPos)
-      :offsetCameraRot(lerpedFinalCameraRot)
-      :cameraPos(offsetCameraPos)
+	renderer:cameraPivot(lerpedFinalCameraPos)
+		:offsetCameraRot(lerpedFinalCameraRot)
+		:cameraPos(offsetCameraPos)
 
-  lastCameraPos = lerpedFinalCameraPos
+	lastCameraPos = lerpedFinalCameraPos
 
-  -- Set the camera matrix scale, and apply camera rolling
+	-- Set the camera matrix scale, and apply camera rolling
 
-  local finalCameraScale = math.clamp(math.map(cameraScale, 0.0625, 0.00390625, 1, 10), 1, 10)
-  if cameraMatVer then
-    local cameraMat = matrices.mat3()
-        :scale(finalCameraScale)
-        :rotate(0, 0, lerpedFinalCameraRot.z)
-        :augmented()
-    renderer:setCameraMatrix(cameraMat)
-  end
+	local finalCameraScale = math.clamp(math.map(cameraScale, 0.0625, 0.00390625, 1, 10), 1, 10)
+	if cameraMatVer then
+		local cameraMat = matrices.mat3()
+			:scale(finalCameraScale)
+			:rotate(0, 0, lerpedFinalCameraRot.z)
+			:augmented()
+		renderer:setCameraMatrix(cameraMat)
+	end
 
-  if renderer:isFirstPerson() then return end -- Third person render stuff
+	if renderer:isFirstPerson() then return end -- Third person render stuff
 
-  -- Disable collisions in spectator mode
+	-- Disable collisions in spectator mode
 
-  local doCollisions = not doTLerp and player:getGamemode() ~= "SPECTATOR" and curr.doCollisions
+	local doCollisions = not doTLerp and player:getGamemode() ~= "SPECTATOR" and curr.doCollisions
 
-  -- Calculate, and apply, camera distance using boxcasting
+	-- Calculate, and apply, camera distance using boxcasting
 
-  local vanillaDist = boxcast(lerpedFinalCameraPos, cameraDir, distAtt * scAtt, 0.1)
-  local desiredDist = (curr.distance or distAtt) * cameraScale
+	local vanillaDist = boxcast(lerpedFinalCameraPos, cameraDir, distAtt * scAtt, 0.1)
+	local desiredDist = (curr.distance or distAtt) * cameraScale
 
-  if doCollisions then
-    desiredDist = boxcast(lerpedFinalCameraPos, cameraDir, desiredDist, 0.1 * cameraScale)
-  end
+	if doCollisions then
+		desiredDist = boxcast(lerpedFinalCameraPos, cameraDir, desiredDist, 0.1 * cameraScale)
+	end
 
-  desiredDist = not renderer:isFirstPerson() and desiredDist or desiredDist
-  local finalDist = desiredDist - vanillaDist
-  renderer:setCameraPos(offsetCameraPos:add(0, 0, finalDist))
+	desiredDist = not renderer:isFirstPerson() and desiredDist or desiredDist
+	local finalDist = desiredDist - vanillaDist
+	renderer:setCameraPos(offsetCameraPos:add(0, 0, finalDist))
 end
 
 -- Determine if pre_render actually works as intended
@@ -632,41 +632,43 @@ end
 
 -- Determine which event to use, by checking if pre_render exists. Enable compatibility mode if it does not
 
-local pre_render = events.pre_render or silly and silly.backports.PRE_RENDER
+---@type function|Event
+---@diagnostic disable-next-line: undefined-field
+local pre_render = events.pre_render or silly and silly.backports and silly.backports.PRE_RENDER
 
 if isHost and pre_render and type(pre_render.register) == "function" then
-  pre_render:register(cameraRender)
-  if not isHost then return end
-  -- events.render:register(compatCheck)
+	pre_render:register(cameraRender)
+	if not isHost then return end
+	-- events.render:register(compatCheck)
 else
-  models:newPart("FOXCamera_preRender", isHost and "World" or nil).preRender = cameraRender
-  if not logOnCompat then return end
-  host:actionbar("§cFOXCamera running in compatibility mode!")
+	models:newPart("FOXCamera_preRender", isHost and "World" or nil).preRender = cameraRender
+	if not logOnCompat then return end
+	host:actionbar("§cFOXCamera running in compatibility mode!")
 end
 
 if isHost then
-  events.post_world_render:register(postRender)
+	events.post_world_render:register(postRender)
 else
-  events.post_render:register(postRender)
+	events.post_render:register(postRender)
 end
 
 if isHost then
-  local lastCamera
-  local lastFreecam = false
-  function events.tick()
-    local actionbar = client:getActionbar()
-    if not (actionbar and actionbar:find("Toggled Free Camera")) then return end
-    local isFreecam = actionbar:find("ON") and true or false
-    if lastFreecam == isFreecam then return end
-    lastFreecam = isFreecam
+	local lastCamera
+	local lastFreecam = false
+	function events.tick()
+		local actionbar = client:getActionbar()
+		if not (actionbar and actionbar:find("Toggled Free Camera")) then return end
+		local isFreecam = actionbar:find("ON") and true or false
+		if lastFreecam == isFreecam then return end
+		lastFreecam = isFreecam
 
-    if isFreecam then
-      lastCamera = CameraAPI.getCamera()
-      CameraAPI.setCamera()
-    else
-      CameraAPI.setCamera(lastCamera)
-    end
-  end
+		if isFreecam then
+			lastCamera = CameraAPI.getCamera()
+			CameraAPI.setCamera()
+		else
+			CameraAPI.setCamera(lastCamera)
+		end
+	end
 end
 
 --#ENDREGION

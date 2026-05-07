@@ -277,6 +277,7 @@ function CameraAPI.setCamera(camera, lerpTick, easeFunc)
 		CameraAPI.isCulled = nil
 		CameraAPI.isRendering = nil
 		last = nil
+		curr = nil
 
 		finalCameraPos = player:getPos():add(0, player:getEyeHeight(), 0)
 		finalCameraRot = vec(0, 0, 0)

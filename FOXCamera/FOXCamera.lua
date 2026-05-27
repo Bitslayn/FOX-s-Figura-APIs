@@ -643,8 +643,9 @@ if isHost and pre_render and type(pre_render.register) == "function" then
 	-- events.render:register(compatCheck)
 else
 	models:newPart("FOXCamera_preRender", isHost and "World" or nil).preRender = cameraRender
-	if not logOnCompat then return end
-	host:actionbar("§cFOXCamera running in compatibility mode!")
+	if logOnCompat then
+		host:actionbar("§cFOXCamera running in compatibility mode!")
+	end
 end
 
 if isHost then

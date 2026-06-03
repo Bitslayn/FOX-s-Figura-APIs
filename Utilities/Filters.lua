@@ -293,7 +293,7 @@ function texture:applyFilterAsync(x, y, w, h, flt, msk, callback, name)
 						:add(_flt, x, y, w, h)
 					callback(self)
 				else -- Figura <0.1.6
-					local progress = Task.ProgressBar("Applying filter to "..name,w)
+					local progress = Task.ProgressBar("Applying filter to "..name.." > Mask",w)
 					Task(x,x+w-1,function(_x)
 						progress()
 						Task(y,y+h-1,function(_y)
@@ -319,7 +319,7 @@ function texture:applyFilterAsync(x, y, w, h, flt, msk, callback, name)
 			if mod.typ == "mat" then
 				self:applyMatrix(x, y, w, h, val --[[@as Matrix4]], true) -- Clip here for 1.21+
 			elseif mod.typ == "fun" then
-				local progress = Task.ProgressBar("Applying filter to "..name,w)
+				local progress = Task.ProgressBar("Applying filter to "..name.." > Filter",w)
 				Task(x,x+w-1,function(_x)
 					progress()
 					Task(y,y+h-1,function(_y)
@@ -335,7 +335,7 @@ function texture:applyFilterAsync(x, y, w, h, flt, msk, callback, name)
 				local c_len = #val --[[@as number[][] ]][1]
 				local r_off = math.ceil(r_len / 2)
 				local c_off = math.ceil(c_len / 2)
-				local progress = Task.ProgressBar("Applying filter to "..name,w)
+				local progress = Task.ProgressBar("Applying filter to "..name.." > Filter",w)
 				Task(x,x+w-1,function(u)
 					progress()
 					Task(y,y+h-1,function(v)

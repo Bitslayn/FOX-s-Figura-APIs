@@ -259,6 +259,8 @@ function texture:applyFilterAsync(x, y, w, h, flt, msk, callback)
 	local success, Task = pcall(require, "./task")
 	assert(success, "You must add task.lua to your avatar to use this function.")
 
+	callback = callback or function() end
+
 	-- Sanitize filters being applied
 
 	if flt and flt[1] then

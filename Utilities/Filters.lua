@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Filters API v1.3d
+FOX's Filters API v1.4
 
 Github: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/Filters.lua
 Wiki: https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI

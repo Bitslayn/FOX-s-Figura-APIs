@@ -253,13 +253,15 @@ end
 ---@param flt FOXFilter
 ---@param msk FOXFilter?
 ---@param callback fun(result: Texture)?
+---@param name string?
 ---@return nil
-function texture:applyFilterAsync(x, y, w, h, flt, msk, callback)
+function texture:applyFilterAsync(x, y, w, h, flt, msk, callback, name)
 	-- Check if Task is available
 	local success, Task = pcall(require, "./task")
 	assert(success, "You must add task.lua to your avatar to use this function.")
 
 	callback = callback or function() end
+	name = name or self:getName()
 
 	-- Sanitize filters being applied
 
@@ -291,7 +293,7 @@ function texture:applyFilterAsync(x, y, w, h, flt, msk, callback)
 						:add(_flt, x, y, w, h)
 					callback(self)
 				else -- Figura <0.1.6
-					local progress = Task.ProgressBar("Applying filter to "..self:getName(),w)
+					local progress = Task.ProgressBar("Applying filter to "..name,w)
 					Task(x,x+w-1,function(_x)
 						progress()
 						Task(y,y+h-1,function(_y)
@@ -306,8 +308,8 @@ function texture:applyFilterAsync(x, y, w, h, flt, msk, callback)
 						callback(self)
 					end)
 				end
-			end)
-		end)
+			end, name)
+		end, name)
 	else
 		-- Apply filter
 		Task(1,#flt[1].mod,function(i)
@@ -317,7 +319,7 @@ function texture:applyFilterAsync(x, y, w, h, flt, msk, callback)
 			if mod.typ == "mat" then
 				self:applyMatrix(x, y, w, h, val --[[@as Matrix4]], true) -- Clip here for 1.21+
 			elseif mod.typ == "fun" then
-				local progress = Task.ProgressBar("Applying filter to "..self:getName(),w)
+				local progress = Task.ProgressBar("Applying filter to "..name,w)
 				Task(x,x+w-1,function(_x)
 					progress()
 					Task(y,y+h-1,function(_y)
@@ -333,7 +335,7 @@ function texture:applyFilterAsync(x, y, w, h, flt, msk, callback)
 				local c_len = #val --[[@as number[][] ]][1]
 				local r_off = math.ceil(r_len / 2)
 				local c_off = math.ceil(c_len / 2)
-				local progress = Task.ProgressBar("Applying filter to "..self:getName(),w)
+				local progress = Task.ProgressBar("Applying filter to "..name,w)
 				Task(x,x+w-1,function(u)
 					progress()
 					Task(y,y+h-1,function(v)
@@ -839,7 +841,7 @@ end
 --#REGION ˚♡ API ♡˚
 --==============================================================================================================================
 
----Creates a new texture filter which can be applied by calling `<Texture>:applyFilter()`.
+---Creates a new texture filter which can be applied by calling `<Texture>:applyFilter()` or `<Texture>:applyFilterAsync()`.
 ---
 ---Filter modifiers can be chained together to create complex filters, and are applied in order.
 ---

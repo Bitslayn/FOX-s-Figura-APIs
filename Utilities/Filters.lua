@@ -247,6 +247,7 @@ end
 ---
 ---https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI#getting-started
 ---@param name string
+---@param len integer
 ---@param self Texture
 ---@param x integer
 ---@param y integer
@@ -256,7 +257,7 @@ end
 ---@param msk FOXFilter?
 ---@param callback fun(result: Texture)?
 ---@return nil
-local function applyFilterAsyncNamed(name, self, x, y, w, h, flt, msk, callback)
+local function applyFilterAsyncNamed(name, len, self, x, y, w, h, flt, msk, callback)
 	-- Check if Task is available
 	local success, Task = pcall(require, "./task")
 	assert(success, "You must add task.lua to your avatar to use this function.")
@@ -278,9 +279,11 @@ local function applyFilterAsyncNamed(name, self, x, y, w, h, flt, msk, callback)
 	if msk and msk[1].mod[1] and flt and flt[1].mod[1] then
 		-- Apply filter + mask
 
+		len = len + 1
+
 		local byt = self:save()
-		applyFilterAsyncNamed(name, textures:read("_flt", byt), x, y, w, h, flt, nil, function(_flt)
-			applyFilterAsyncNamed(name, textures:read("_msk", byt), x, y, w, h, msk, nil, function(_msk)
+		applyFilterAsyncNamed(name, len, textures:read("_flt", byt), x, y, w, h, flt, nil, function(_flt)
+			applyFilterAsyncNamed(name, len, textures:read("_msk", byt), x, y, w, h, msk, nil, function(_msk)
 				---@diagnostic disable-next-line: undefined-field
 				if _flt.invert then -- Figura 0.1.6+
 					---@diagnostic disable-next-line: undefined-field
@@ -293,83 +296,84 @@ local function applyFilterAsyncNamed(name, self, x, y, w, h, flt, msk, callback)
 						:add(_flt, x, y, w, h)
 					callback(self)
 				else -- Figura <0.1.6
-					local progress = Task.ProgressBar("Applying filter to "..name.." > Mask",w)
-					Task(x,x+w-1,function(_x)
-						progress()
-						Task(y,y+h-1,function(_y)
-							self:setPixel(_x,_y,math.lerp(
-								self:getPixel(_x, _y),
-								_flt:getPixel(_x, _y),
-								_msk:getPixel(_x, _y)
-							))
+					local progress = Task.ProgressBar("Applying filter to " .. name .. " (" .. len .. "/" .. len .. ")", w)
+					Task(x, x + w - 1, function(_x)
+							progress()
+							Task(y, y + h - 1, function(_y)
+								self:setPixel(_x, _y, math.lerp(
+									self:getPixel(_x, _y),
+									_flt:getPixel(_x, _y),
+									_msk:getPixel(_x, _y)
+								))
+							end)
+						end,
+						function()
+							callback(self)
 						end)
-					end,
-					function()
-						callback(self)
-					end)
 				end
 			end)
 		end)
 	else
 		-- Apply filter
-		Task(1,#flt[1].mod,function(i)
-			local mod = flt[1].mod[i]
-			local val = mod.val
+		Task(1, #flt[1].mod, function(i)
+				local mod = flt[1].mod[i]
+				local val = mod.val
 
-			if mod.typ == "mat" then
-				self:applyMatrix(x, y, w, h, val --[[@as Matrix4]], true) -- Clip here for 1.21+
-			elseif mod.typ == "fun" then
-				local progress = Task.ProgressBar("Applying filter to "..name.." > Filter",w)
-				Task(x,x+w-1,function(_x)
-					progress()
-					Task(y,y+h-1,function(_y)
-						self:applyFunc(_x, _y, 1, 1, val --[[@as FOXFilter.Function]])
-					end)
-				end)
-			elseif mod.typ == "ker" then
-				local _tmp = textures:read("_tmp", self:save())
-
-				-- Apply kernel to texture
-
-				local r_len = #val --[[@as number[][] ]]
-				local c_len = #val --[[@as number[][] ]][1]
-				local r_off = math.ceil(r_len / 2)
-				local c_off = math.ceil(c_len / 2)
-				local progress = Task.ProgressBar("Applying filter to "..name.." > Filter",w)
-				Task(x,x+w-1,function(u)
-					progress()
-					Task(y,y+h-1,function(v)
-						local col = self:getPixel(u,v)
-						local sum = vec(0, 0, 0)
-
-						-- Apply kernel to pixel
-
-						local x_max = math.max(0, u - c_off + 1)
-						local y_max = math.max(0, v - r_off + 1)
-						local x_min = math.min(w, u + c_len - c_off + 1)
-						local y_min = math.min(h, v + r_len - r_off + 1)
-								
-						Task(x_max,x_min-1,function(_u)
-							Task(y_max,y_min-1,function(_v)
-								local _col = _tmp:getPixel(_u,_v)
-								local c = _u - u + c_off
-								local r = _v - v + r_off
-
-								sum = val --[[@as number[][] ]][r][c] * _col.xyz + sum
-							end)
-						end,
-						function()
-							self:setPixel(u,v,sum:augmented(col.w):applyFunc(function(vtx)
-								return math.clamp(vtx, 0, 1) -- Clip here for 1.21+
-							end))
+				if mod.typ == "mat" then
+					self:applyMatrix(x, y, w, h, val --[[@as Matrix4]], true) -- Clip here for 1.21+
+				elseif mod.typ == "fun" then
+					local progress = Task.ProgressBar("Applying filter to " .. name .. " (" .. i .. "/" .. len .. ")", w)
+					Task(x, x + w - 1, function(_x)
+						progress()
+						Task(y, y + h - 1, function(_y)
+							self:applyFunc(_x, _y, 1, 1, val --[[@as FOXFilter.Function]])
 						end)
 					end)
-				end)
-			end
-		end,
-		function()
-			callback(self)
-		end)
+				elseif mod.typ == "ker" then
+					local _tmp = textures:read("_tmp", self:save())
+
+					-- Apply kernel to texture
+
+					local r_len = #val --[[@as number[][] ]]
+					local c_len = #val --[[@as number[][] ]][1]
+					local r_off = math.ceil(r_len / 2)
+					local c_off = math.ceil(c_len / 2)
+					local progress = Task.ProgressBar("Applying filter to " .. name .. " (" .. i .. "/" .. len .. ")", w)
+					Task(x, x + w - 1, function(u)
+						progress()
+						Task(y, y + h - 1, function(v)
+							local col = self:getPixel(u, v)
+							local sum = vec(0, 0, 0)
+
+							-- Apply kernel to pixel
+
+							local x_max = math.max(0, u - c_off + 1)
+							local y_max = math.max(0, v - r_off + 1)
+							local x_min = math.min(w, u + c_len - c_off + 1)
+							local y_min = math.min(h, v + r_len - r_off + 1)
+
+							Task(x_max, x_min - 1, function(_u)
+									Task(y_max, y_min - 1, function(_v)
+										local _col = _tmp:getPixel(_u, _v)
+										local c = _u - u + c_off
+										local r = _v - v + r_off
+
+										sum = val --[[@as number[][] ]][r][c] * _col.xyz + sum
+									end)
+								end,
+								function()
+									self:setPixel(u, v, sum:augmented(col.w):applyFunc(function(vtx)
+										return math.clamp(vtx, 0, 1) -- Clip here for 1.21+
+									end))
+								end)
+						end)
+					end)
+				end
+			end,
+			function()
+				Task.ProgressBar("Applying filter to " .. name .. " (" .. len .. "/" .. len .. ")", 1)()
+				callback(self)
+			end)
 	end
 end
 
@@ -389,7 +393,7 @@ end
 ---@param callback fun(result: Texture)?
 ---@return nil
 function texture:applyFilterAsync(x, y, w, h, flt, msk, callback)
-	applyFilterAsyncNamed(self:getName(), self, x, y, w, h, flt, msk, callback)
+	applyFilterAsyncNamed(self:getName(), #flt[1].mod, self, x, y, w, h, flt, msk, callback)
 end
 
 --#ENDREGION --=================================================================================================================

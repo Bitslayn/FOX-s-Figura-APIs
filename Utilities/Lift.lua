@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Lift Protocol v1.2
+FOX's Lift Protocol v1.2b
 
 A unique interactions protocol focusing on security
 Allows for interacting with the viewer with a whitelist

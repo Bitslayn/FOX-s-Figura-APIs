@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Lift Protocol v1.2
+FOX's Lift Protocol v1.2b
 
 A unique interactions protocol focusing on security
 Allows for interacting with the viewer with a whitelist
@@ -237,6 +237,16 @@ end
 ---@return boolean?
 function lift.isEnabled()
 	return lift.getConfig("enabled")
+end
+
+---Returns if the target player has you whitelisted in FOXLift.
+---@param name string The target's username
+---@return boolean?
+function lift.checkWhitelisted(name)
+	local plr = world.getPlayers()[name]
+	if not plr then return false; end
+	local vars = plr:getVariable().FOXLift;
+	return vars and vars.config and vars.config.whitelist and vars.config.whitelist[player:getName()]
 end
 
 setmetatable(lift, {

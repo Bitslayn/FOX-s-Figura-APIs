@@ -241,7 +241,7 @@ end
 
 ---Applies a texture filter to an area of pixels asynchronously, keeping instruction limits in mind. The filter can be created by calling `<FOXFilterAPI>.newFilter()` after requiring FOXFilters.
 ---
----It is recommended to call `<Texture>:update()` after doing anything with textures.
+---It is recommended to call `<Texture>:update()` after doing anything with textures. For asynchronous application, do this inside the callback function.
 ---
 ---Another filter can be used as a mask.
 ---

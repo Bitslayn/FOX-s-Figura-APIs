@@ -246,6 +246,8 @@ end
 ---Another filter can be used as a mask.
 ---
 ---https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI#getting-started
+---@param name string
+---@param self Texture
 ---@param x integer
 ---@param y integer
 ---@param w integer
@@ -253,15 +255,13 @@ end
 ---@param flt FOXFilter
 ---@param msk FOXFilter?
 ---@param callback fun(result: Texture)?
----@param name string?
 ---@return nil
-function texture:applyFilterAsync(x, y, w, h, flt, msk, callback, name)
+local function applyFilterAsyncNamed(name, self, x, y, w, h, flt, msk, callback)
 	-- Check if Task is available
 	local success, Task = pcall(require, "./task")
 	assert(success, "You must add task.lua to your avatar to use this function.")
 
 	callback = callback or function() end
-	name = name or self:getName()
 
 	-- Sanitize filters being applied
 
@@ -279,8 +279,8 @@ function texture:applyFilterAsync(x, y, w, h, flt, msk, callback, name)
 		-- Apply filter + mask
 
 		local byt = self:save()
-		textures:read("_flt", byt):applyFilterAsync(x, y, w, h, flt, nil, function(_flt)
-			textures:read("_msk", byt):applyFilterAsync(x, y, w, h, msk, nil, function(_msk)
+		applyFilterAsyncNamed(name, textures:read("_flt", byt), x, y, w, h, flt, nil, function(_flt)
+			applyFilterAsyncNamed(name, textures:read("_msk", byt), x, y, w, h, msk, nil, function(_msk)
 				---@diagnostic disable-next-line: undefined-field
 				if _flt.invert then -- Figura 0.1.6+
 					---@diagnostic disable-next-line: undefined-field
@@ -308,8 +308,8 @@ function texture:applyFilterAsync(x, y, w, h, flt, msk, callback, name)
 						callback(self)
 					end)
 				end
-			end, name)
-		end, name)
+			end)
+		end)
 	else
 		-- Apply filter
 		Task(1,#flt[1].mod,function(i)
@@ -371,6 +371,25 @@ function texture:applyFilterAsync(x, y, w, h, flt, msk, callback, name)
 			callback(self)
 		end)
 	end
+end
+
+---Applies a texture filter to an area of pixels asynchronously, keeping instruction limits in mind. The filter can be created by calling `<FOXFilterAPI>.newFilter()` after requiring FOXFilters.
+---
+---It is recommended to call `<Texture>:update()` after doing anything with textures. For asynchronous application, do this inside the callback function.
+---
+---Another filter can be used as a mask.
+---
+---https://github.com/Bitslayn/FOX-s-Figura-APIs/wiki/FOXFiltersAPI#getting-started
+---@param x integer
+---@param y integer
+---@param w integer
+---@param h integer
+---@param flt FOXFilter
+---@param msk FOXFilter?
+---@param callback fun(result: Texture)?
+---@return nil
+function texture:applyFilterAsync(x, y, w, h, flt, msk, callback)
+	applyFilterAsyncNamed(self:getName(), self, x, y, w, h, flt, msk, callback)
 end
 
 --#ENDREGION --=================================================================================================================

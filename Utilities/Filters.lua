@@ -252,7 +252,7 @@ end
 ---@param h integer
 ---@param flt FOXFilter
 ---@param msk FOXFilter?
----@param callback fun(result: Texture)
+---@param callback fun(result: Texture)?
 ---@return nil
 function texture:applyFilterAsync(x, y, w, h, flt, msk, callback)
 	-- Check if Task is available

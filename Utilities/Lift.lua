@@ -241,12 +241,13 @@ end
 
 ---Returns if the target player has you whitelisted in FOXLift.
 ---@param name string The target's username
+---@param user? string The user's (or someone else's) username
 ---@return boolean?
-function lift.checkWhitelisted(name)
+function lift.checkWhitelisted(name, user)
 	local plr = world.getPlayers()[name]
 	if not plr then return false; end
 	local vars = plr:getVariable().FOXLift;
-	return vars and vars.config and vars.config.whitelist and vars.config.whitelist[player:getName()]
+	return vars and vars.config and vars.config.whitelist and vars.config.whitelist[user or player:getName()]
 end
 
 setmetatable(lift, {

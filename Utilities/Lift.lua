@@ -250,6 +250,16 @@ function lift.checkWhitelisted(name, user)
 	return vars and vars.config and vars.config.whitelist and vars.config.whitelist[user or player:getName()]
 end
 
+---Returns if the target player has you FOXLift enabled.
+---@param name string The target's username
+---@return boolean?
+function lift.checkEnabled(name)
+	local plr = world.getPlayers()[name]
+	if not plr then return false; end
+	local vars = plr:getVariable().FOXLift;
+	return vars and vars.config and vars.config.enabled
+end
+
 setmetatable(lift, {
 	---Allow indexing `lift` and calling viewer functions
 	---@param _ FOXLift

@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Data Packages Lib v1.0
+FOX's Data Packages Lib v1.1
 
 Github: https://github.com/Bitslayn/FOX-s-Figura-APIs/blob/main/Utilities/PackageD.lua
 ]]
@@ -33,6 +33,14 @@ local function get_script(level)
 	return select(2, pcall(function() error("", level + 3) end)):match("(.-)/?([^/]+):")
 end
 
+---Unpacks the current traceback environment onto the navigation table
+---@param nav string[]
+local function unpack_env(nav)
+	for dir in get_script(4):gmatch("[^/]+") do
+		nav[#nav + 1] = dir
+	end
+end
+
 ---Normalizes `./` and `../` in the provided path to the literal path recognizable by the filesystem
 ---@param modname string
 local function normalize(modname)
@@ -40,18 +48,25 @@ local function normalize(modname)
 	local nav = {}
 
 	modname = modname
-		:gsub("%.", "/") -- Convert . -> /
-		:gsub("^//", "./") -- Convert .. -> ./
-		:gsub("///", "/..") -- Convert ... -> ../
-		:gsub("//", "/.") -- Fix illegal path
+		-- Replace all . with /
+		:gsub("%.", "/")
+
+		-- Append ./ and ../ at beginning of modname
+		:gsub("^///", "../")
+		:gsub("^//", "./")
+
+		-- Append ../ between modname
+		:gsub("///", "/..")
+		:gsub("//", "/.")
 
 	for dir in modname:gmatch("[^/]+") do
 		if dir == ".." then
+			if #nav == 0 then
+				unpack_env(nav)
+			end
 			nav[#nav] = nil
 		elseif dir == "." then
-			for _dir in get_script(3):gmatch("[^/]+") do
-				nav[#nav + 1] = _dir
-			end
+			unpack_env(nav)
 		else
 			nav[#nav + 1] = dir
 		end

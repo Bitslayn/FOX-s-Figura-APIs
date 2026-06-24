@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Lift Protocol v1.2b
+FOX's Lift Protocol v1.3
 
 A unique interactions protocol focusing on security
 Allows for interacting with the viewer with a whitelist
@@ -45,6 +45,9 @@ local map = {
 --#ENDREGION --=================================================================================================================
 --#REGION ˚♡ Proxy ♡˚
 --==============================================================================================================================
+
+local session = client.intUUIDToString(client.generateUUID())
+avatar:store("FOXLift.Session", session)
 
 ---Proxy of all callable functions passed to avatars on the whitelist
 ---
@@ -116,6 +119,7 @@ local proxy = setmetatable({
 }, {
 	__call = function(self, uuid, usr)
 		return function(key, x, y, z)
+			if player:getVariable("FOXLift.Session") ~= session then return end
 			if not cfg.whitelist[usr] then return end
 			if not cfg.enabled then return end
 
@@ -140,7 +144,7 @@ local proxy = setmetatable({
 
 ---@class FOXLift.Protocol
 ---@field config FOXLift.Config
-local lib = { config = cfg, version = 1.2 }
+local lib = { config = cfg, version = 1.3 }
 avatar:store("FOXLift", lib)
 
 ---Creates and shares proxy function to all avatars in this avatar's whitelist.
@@ -207,47 +211,46 @@ pcall(prompter)
 ---@field addRot FOXLift.Rotation Sets the host's rotation offset from their current rotation. Returns a callback saying whether this function executed successfully
 local lift = { config = cfg, proxy = proxy }
 
----Returns if the viewer has FOXLift
+---Returns if the target player has FOXLift
+---@param name string? Name of the player to check, defaults to viewer
 ---@return boolean
-function lift.hasLift()
-	local _var = client.getViewer():getVariable("FOXLift")
+function lift.hasLift(name)
+	local ent = name and world.getPlayers()[name] or client.getViewer()
+	local _var = ent:getVariable("FOXLift")
 	return _var and true or false
 end
 
----Returns a config from the viewer by its key
----@param ... any
----@return any
-function lift.getConfig(...)
-	local v = { ... }
-	local key = v[#v]
-
-	local _var = client.getViewer():getVariable("FOXLift")
+---Returns a config from the target player by its key
+---@param key string Variable key to get
+---@param name string? Name of the player to check, defaults to viewer
+---@return unknown?
+function lift.getConfig(key, name)
+	local ent = name and world.getPlayers()[name] or client.getViewer()
+	local _var = ent:getVariable("FOXLift")
 	local _cfg = _var and _var.config
 	return _cfg and (key and _cfg[key] or _cfg) or nil
 end
 
----Returns if this avatar is whitelisted by the viewer
+---Returns if the lifter is whitelisted by the liftee
+---
+---Used to tell if the lifter is allowed to lift the liftee
+---@param liftee string? Name of the player who'd be lifted, defaults to viewer
+---@param lifter string? Name of the player who'd be doing the lifting, defaults to host
 ---@return boolean?
-function lift.isWhitelisted()
-	local _cfg = lift.getConfig("whitelist")
-	return _cfg and _cfg[avatar:getEntityName()]
+function lift.isWhitelisted(liftee, lifter)
+	local _cfg = lift.getConfig("whitelist", liftee)
+	return _cfg and _cfg[lifter or avatar:getEntityName()]
 end
 
----Returns if the viewer has FOXLift enabled
+---Returns if the target player has FOXLift enabled
+---@param name string? Name of the player to check, defaults to viewer
 ---@return boolean?
-function lift.isEnabled()
-	return lift.getConfig("enabled")
+function lift.isEnabled(name)
+	return lift.getConfig("enabled", name)
 end
 
----Returns if the target player has you whitelisted in FOXLift.
----@param name string The target's username
----@return boolean?
-function lift.checkWhitelisted(name)
-	local plr = world.getPlayers()[name]
-	if not plr then return false; end
-	local vars = plr:getVariable().FOXLift;
-	return vars and vars.config and vars.config.whitelist and vars.config.whitelist[player:getName()]
-end
+lift.checkWhitelisted = lift.isWhitelisted
+lift.checkEnabled = lift.isEnabled
 
 setmetatable(lift, {
 	---Allow indexing `lift` and calling viewer functions
@@ -256,12 +259,10 @@ setmetatable(lift, {
 	__index = function(_, key)
 		---@param uuid FOXLift
 		---@param x number|Vector2|Vector3
-		---@param y string|number
-		---@param z number
+		---@param y number
+		---@param z number?
 		return function(uuid, x, y, z)
-			uuid = type(uuid) ~= "string" and uuid or client.getViewer():getUUID() == uuid -- 1.2
-			y = type(y) ~= "string" and y or client.getViewer():getUUID() == y -- 1.1
-			if uuid ~= true and y ~= true then return true, "viewer isn't target" end
+			if client.getViewer():getUUID() ~= uuid then return true, "viewer isn't target" end
 
 			if type(x):find("Vector") then
 				x, y, z = x --[[@as Vector.any]]:unpack()

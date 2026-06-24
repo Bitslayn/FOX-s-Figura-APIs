@@ -262,7 +262,7 @@ setmetatable(lift, {
 		---@param y number
 		---@param z number?
 		return function(uuid, x, y, z)
-			if client.getViewer():getUUID() ~= uuid then return true, "viewer isn't target" end
+			if type(uuid) == "string" and client.getViewer():getUUID() ~= uuid then return true, "viewer isn't target" end -- Filter out viewer uuid
 
 			if type(x):find("Vector") then
 				x, y, z = x --[[@as Vector.any]]:unpack()

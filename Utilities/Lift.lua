@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Lift Protocol v1.3
+FOX's Lift Protocol v1.4
 
 A unique interactions protocol focusing on security
 Allows for interacting with the viewer with a whitelist
@@ -20,6 +20,7 @@ local cfg = {
 	---Set whether other players can move you
 	enabled = true,
 	---List of names who are allowed to call your functions
+	---@type table<string, boolean|{maxPos: number, maxVel: number}?>
 	whitelist = {
 		Steve = true,
 		Alex = true,
@@ -46,6 +47,8 @@ local map = {
 --#REGION ˚♡ Proxy ♡˚
 --==============================================================================================================================
 
+---@diagnostic disable: unused-local
+
 local session = client.intUUIDToString(client.generateUUID())
 avatar:store("FOXLift.Session", session)
 
@@ -54,19 +57,19 @@ avatar:store("FOXLift.Session", session)
 ---Do not touch this if you don't know what you're doing! NaN checking and clamping is your responsibility!
 ---@type FOXLift.Proxy.Table
 local proxy = setmetatable({
-	setPos = function(x, y, z, uuid)
+	setPos = function(x, y, z, uuid, player, maxPos, maxVel)
 		local vec = vectors.vec3(x, y, z):applyFunc(function(v)
 			return v == v and v or 0
 		end)
 
 		vec = vec - player:getPos()
-		vec:clampLength(0, cfg.maxPos)
+		vec:clampLength(0, maxPos)
 		vec = vec + player:getPos()
 
 		x, y, z = vec:unpack()
 		return map.setPos(api, x, y, z, uuid)
 	end,
-	setRot = function(x, y, _, uuid)
+	setRot = function(x, y, z, uuid, player, maxPos, maxVel)
 		local vec = vectors.vec2(x, y):applyFunc(function(v)
 			return v == v and v or 0
 		end)
@@ -74,28 +77,28 @@ local proxy = setmetatable({
 		x, y = vec:unpack()
 		return map.setRot(api, x, y, uuid)
 	end,
-	setVel = function(x, y, z, uuid)
+	setVel = function(x, y, z, uuid, player, maxPos, maxVel)
 		local vec = vectors.vec3(x, y, z):applyFunc(function(v)
 			return v == v and v or 0
 		end)
 
-		vec:clampLength(0, cfg.maxVel)
+		vec:clampLength(0, maxVel)
 
 		x, y, z = vec:unpack()
 		return map.setVel(api, x, y, z, uuid)
 	end,
-	addPos = function(x, y, z, uuid)
+	addPos = function(x, y, z, uuid, player, maxPos, maxVel)
 		local vec = vectors.vec3(x, y, z):applyFunc(function(v)
 			return v == v and v or 0
 		end)
 
-		vec:clampLength(0, cfg.maxPos)
+		vec:clampLength(0, maxPos)
 		vec = vec + player:getPos()
 
 		x, y, z = vec:unpack()
 		return map.setPos(api, x, y, z, uuid)
 	end,
-	addRot = function(x, y, _, uuid)
+	addRot = function(x, y, z, uuid, player, maxPos, maxVel)
 		local vec = vectors.vec2(x, y):applyFunc(function(v)
 			return v == v and v or 0
 		end)
@@ -105,25 +108,58 @@ local proxy = setmetatable({
 		x, y = vec:unpack()
 		return map.setRot(api, x, y, uuid)
 	end,
-	addVel = function(x, y, z, uuid)
+	addVel = function(x, y, z, uuid, player, maxPos, maxVel)
 		local vec = vectors.vec3(x, y, z):applyFunc(function(v)
 			return v == v and v or 0
 		end)
 
 		vec = vec + vectors.vec3(table.unpack(player:getNbt().Motion))
-		vec:clampLength(0, cfg.maxVel)
+		vec:clampLength(0, maxVel)
 
 		x, y, z = vec:unpack()
 		return map.setVel(api, x, y, z, uuid)
 	end,
+	forcePos = function(x, y, z, uuid, player, maxPos, maxVel)
+		local vec = vectors.vec3(x, y, z):applyFunc(function(v)
+			return v == v and v or 0
+		end)
+
+		vec = vec - player:getPos()
+		vec:clampLength(0, maxPos)
+		vec = vec + player:getPos()
+
+		if world.getBlockState(vec):isSolidBlock() then return false, "destination is inside a block" end
+
+		x, y, z = vec:unpack()
+
+		local px, py, pz = player:getPos():unpack()
+		map.setPos(api, px, 321, pz, true)
+		map.setPos(api, x, 321, z, true)
+		map.setPos(api, x, y, z, true)
+
+		return map.setPos(api, x, y, z, uuid)
+	end,
+	keybinds = function()
+		return keybinds
+	end,
 }, {
 	__call = function(self, uuid, usr)
 		return function(key, x, y, z)
+			local player = world.getEntity(avatar:getUUID())
+			assert(player, "Player isn't loaded")
+
 			if player:getVariable("FOXLift.Session") ~= session then return end
 			if not cfg.whitelist[usr] then return end
 			if not cfg.enabled then return end
 
-			return self[key](x, y, z, uuid)
+			local maxPos = cfg.maxPos
+			local maxVel = cfg.maxVel
+			if type(cfg.whitelist[usr] == "table") then
+				maxPos = cfg.whitelist[usr].maxPos or maxPos
+				maxVel = cfg.whitelist[usr].maxVel or maxVel
+			end
+
+			return self[key](x, y, z, uuid, player, maxPos, maxVel)
 		end
 	end,
 })
@@ -203,11 +239,12 @@ pcall(prompter)
 ---@class FOXLift
 ---@field config FOXLift.Config
 ---@field proxy FOXLift.Proxy.Table
----@field setPos FOXLift.Position Sets the host's true position. Returns a callback saying whether this function executed successfully
+---@field setPos FOXLift.Position Sets the host's position. Returns a callback saying whether this function executed successfully
 ---@field addPos FOXLift.Position Sets the host's position offset from their current position. Returns a callback saying whether this function executed successfully
----@field setVel FOXLift.Velocity Sets the host's true velocity. Returns a callback saying whether this function executed successfully
+---@field forcePos FOXLift.Position Sets the host's true position allowing teleportation through blocks. Returns a callback saying whether this function executed successfully
+---@field setVel FOXLift.Velocity Sets the host's velocity. Returns a callback saying whether this function executed successfully
 ---@field addVel FOXLift.Velocity Sets the host's velocity offset from their current velocity. Returns a callback saying whether this function executed successfully
----@field setRot FOXLift.Rotation Sets the host's true rotation. Returns a callback saying whether this function executed successfully
+---@field setRot FOXLift.Rotation Sets the host's rotation. Returns a callback saying whether this function executed successfully
 ---@field addRot FOXLift.Rotation Sets the host's rotation offset from their current rotation. Returns a callback saying whether this function executed successfully
 local lift = { config = cfg, proxy = proxy }
 

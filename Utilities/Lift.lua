@@ -139,9 +139,6 @@ local proxy = setmetatable({
 
 		return map.setPos(api, x, y, z, uuid)
 	end,
-	keybinds = function()
-		return keybinds
-	end,
 }, {
 	__call = function(self, uuid, usr)
 		return function(key, x, y, z)

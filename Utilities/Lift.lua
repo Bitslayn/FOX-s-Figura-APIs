@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Lift Protocol v1.4
+FOX's Lift Protocol v1.4b
 
 A unique interactions protocol focusing on security
 Allows for interacting with the viewer with a whitelist
@@ -151,7 +151,7 @@ local proxy = setmetatable({
 
 			local maxPos = cfg.maxPos
 			local maxVel = cfg.maxVel
-			if type(cfg.whitelist[usr] == "table") then
+			if type(cfg.whitelist[usr]) == "table" then
 				maxPos = cfg.whitelist[usr].maxPos or maxPos
 				maxVel = cfg.whitelist[usr].maxVel or maxVel
 			end
